@@ -1,0 +1,52 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.12.35707.178 d17.12
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RentalHive.Api", "RentalHive.Api\RentalHive.Api.csproj", "{035D2C37-523C-4785-8970-4F7DF4D53432}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RentalHive.Application", "RentalHive.Application\RentalHive.Application.csproj", "{465F981E-09D3-492A-902C-90EDB4890EFB}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RentalHive.Domain", "RentalHive.Domain\RentalHive.Domain.csproj", "{0922E451-6253-41C6-8C9A-98A4FAAC389B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RentalHive.Infrastructure", "RentalHive.Infrastructure\RentalHive.Infrastructure.csproj", "{31FD9F85-D476-477F-B002-5C9F64D01D4B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RentalHive.Web", "RentalHive.Web\RentalHive.Web\RentalHive.Web.csproj", "{DA7C6E45-9813-4CEA-9A64-4C818D394817}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RentalHive.Web.Client", "RentalHive.Web\RentalHive.Web.Client\RentalHive.Web.Client.csproj", "{0CB59E5F-726B-4B8C-9F52-348349AEE690}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{035D2C37-523C-4785-8970-4F7DF4D53432}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{035D2C37-523C-4785-8970-4F7DF4D53432}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{035D2C37-523C-4785-8970-4F7DF4D53432}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{035D2C37-523C-4785-8970-4F7DF4D53432}.Release|Any CPU.Build.0 = Release|Any CPU
+		{465F981E-09D3-492A-902C-90EDB4890EFB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{465F981E-09D3-492A-902C-90EDB4890EFB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{465F981E-09D3-492A-902C-90EDB4890EFB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{465F981E-09D3-492A-902C-90EDB4890EFB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0922E451-6253-41C6-8C9A-98A4FAAC389B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0922E451-6253-41C6-8C9A-98A4FAAC389B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0922E451-6253-41C6-8C9A-98A4FAAC389B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0922E451-6253-41C6-8C9A-98A4FAAC389B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{31FD9F85-D476-477F-B002-5C9F64D01D4B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{31FD9F85-D476-477F-B002-5C9F64D01D4B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{31FD9F85-D476-477F-B002-5C9F64D01D4B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{31FD9F85-D476-477F-B002-5C9F64D01D4B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DA7C6E45-9813-4CEA-9A64-4C818D394817}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DA7C6E45-9813-4CEA-9A64-4C818D394817}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DA7C6E45-9813-4CEA-9A64-4C818D394817}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DA7C6E45-9813-4CEA-9A64-4C818D394817}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0CB59E5F-726B-4B8C-9F52-348349AEE690}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0CB59E5F-726B-4B8C-9F52-348349AEE690}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0CB59E5F-726B-4B8C-9F52-348349AEE690}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0CB59E5F-726B-4B8C-9F52-348349AEE690}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
