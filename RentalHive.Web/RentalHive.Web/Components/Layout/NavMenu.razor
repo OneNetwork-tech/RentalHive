@@ -1,9 +1,34 @@
-﻿<div class="container mx-auto px-4">
+﻿@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Routing
+@using Microsoft.AspNetCore.Components.Web
+@using RentalHive.Web.Services
+@inherits LayoutComponentBase
+
+inject IAuthService AuthService
+
+@inject NavigationManager NavigationManager
+
+
+
+<div class="container mx-auto px-4">
     <nav class="flex justify-between items-center py-4">
 
         <!-- Logo -->
-        <a href="/" class="text-2xl font-bold text-indigo-600 hover:text-indigo-700 transition-colors">
-            RentalHive
+        <a href="/" aria-label="RentalHive Home">
+            <svg class="h-8" viewBox="0 0 150 40" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <linearGradient id="logo-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" style="stop-color:#4f46e5;stop-opacity:1" />
+                        <stop offset="100%" style="stop-color:#6366f1;stop-opacity:1" />
+                    </linearGradient>
+                </defs>
+                <g transform="translate(0, 5) scale(0.8)">
+                    <path d="M20,0 L30,5.77 V17.32 L20,23.09 L10,17.32 V5.77 L20,0 Z M0,11.55 L10,17.32 V28.87 L0,23.09 V11.55 Z M10,17.32 L20,23.09 L30,17.32 L20,11.55 L10,17.32 Z" fill="url(#logo-grad)" />
+                </g>
+                <text x="38" y="28" font-family="Inter, sans-serif" font-size="24" font-weight="bold" fill="#1f2937">
+                    RentalHive
+                </text>
+            </svg>
         </a>
 
         <!-- Desktop Navigation Links -->
@@ -14,26 +39,29 @@
             <NavLink href="rent-out" class="text-gray-600 hover:text-indigo-600 font-medium transition-colors">Rent Out</NavLink>
         </div>
 
-        <!-- Desktop Auth Buttons -->
+        <!-- Desktop Auth Section -->
         <div class="hidden md:flex items-center space-x-4">
-            <a href="/login" class="text-gray-600 hover:text-indigo-600 font-medium transition-colors">Log In</a>
-            <a href="/register" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition-all duration-300 shadow-md hover:shadow-lg">
-                Register
-            </a>
+            <AuthorizeView>
+                <Authorized>
+                    <span class="text-gray-700 font-medium">Hi, @context.User.Identity?.Name</span>
+                    <button @onclick="HandleLogout" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg transition-colors">
+                        Log Out
+                    </button>
+                </Authorized>
+                <NotAuthorized>
+                    <a href="/login" class="text-gray-600 hover:text-indigo-600 font-medium transition-colors">Log In</a>
+                    <a href="/register" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition-all duration-300 shadow-md hover:shadow-lg">
+                        Register
+                    </a>
+                </NotAuthorized>
+            </AuthorizeView>
         </div>
 
         <!-- Mobile Menu Button -->
         <div class="md:hidden">
             <button @onclick="ToggleNavMenu" class="text-gray-600 hover:text-indigo-600 focus:outline-none">
                 <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    @if (isNavMenuOpen)
-                    {
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                    }
-                    else
-                    {
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
-                    }
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="@(isNavMenuOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16M4 18h16")" />
                 </svg>
             </button>
         </div>
@@ -50,8 +78,20 @@
     </div>
     <div class="pt-4 pb-3 border-t border-gray-200">
         <div class="px-5 space-y-2">
-            <a href="/login" class="block text-center w-full bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg">Log In</a>
-            <a href="/register" class="block text-center w-full bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg">Register</a>
+            <AuthorizeView>
+                <Authorized>
+                    <div class="text-center mb-2">
+                        <span class="block px-3 py-2 text-base font-medium text-gray-700">Hi, @context.User.Identity?.Name</span>
+                    </div>
+                    <button @onclick="HandleLogout" class="block text-center w-full bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg">
+                        Log Out
+                    </button>
+                </Authorized>
+                <NotAuthorized>
+                    <a href="/login" class="block text-center w-full bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg">Log In</a>
+                    <a href="/register" class="block text-center w-full bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg mt-2">Register</a>
+                </NotAuthorized>
+            </AuthorizeView>
         </div>
     </div>
 </div>
@@ -62,5 +102,11 @@
     private void ToggleNavMenu()
     {
         isNavMenuOpen = !isNavMenuOpen;
+    }
+
+    private async Task HandleLogout()
+    {
+        await AuthService.LogoutAsync();
+        NavigationManager.NavigateTo("/"); // Redirect to home page after logout
     }
 }
