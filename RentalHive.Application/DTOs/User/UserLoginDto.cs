@@ -2,13 +2,10 @@
 
 namespace RentalHive.Application.DTOs.User
 {
-    /// <summary>
-    /// DTO for user login.
-    /// </summary>
     public class UserLoginDto
     {
         [Required]
-        public string PersonalIdentityNumber { get; set; }
+        public string LoginIdentifier { get; set; } // Can be Personnummer, Email, or Phone
 
         [Required]
         public string Password { get; set; }

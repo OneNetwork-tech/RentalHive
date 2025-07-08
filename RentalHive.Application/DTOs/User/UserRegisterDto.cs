@@ -2,9 +2,6 @@
 
 namespace RentalHive.Application.DTOs.User
 {
-    /// <summary>
-    /// DTO for user registration.
-    /// </summary>
     public class UserRegisterDto
     {
         [Required]
@@ -19,6 +16,12 @@ namespace RentalHive.Application.DTOs.User
         [Required]
         [EmailAddress]
         public string Email { get; set; }
+
+        [Required]
+        public string PhoneNumber { get; set; }
+
+        [Required]
+        public string Address { get; set; }
 
         [Required]
         [MinLength(8)]
