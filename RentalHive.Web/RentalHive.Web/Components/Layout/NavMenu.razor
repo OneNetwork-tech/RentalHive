@@ -1,92 +1,66 @@
-﻿@implements IDisposable
+﻿<div class="container mx-auto px-4">
+    <nav class="flex justify-between items-center py-4">
 
-@inject NavigationManager NavigationManager
+        <!-- Logo -->
+        <a href="/" class="text-2xl font-bold text-indigo-600 hover:text-indigo-700 transition-colors">
+            RentalHive
+        </a>
 
-<div class="top-row ps-3 navbar navbar-dark">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="">RentalHive.Web</a>
-    </div>
-</div>
-
-<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
-
-<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
-    <nav class="flex-column">
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
-            </NavLink>
+        <!-- Desktop Navigation Links -->
+        <div class="hidden md:flex items-center space-x-8">
+            <NavLink href="cars" class="text-gray-600 hover:text-indigo-600 font-medium transition-colors">Cars</NavLink>
+            <NavLink href="boats" class="text-gray-600 hover:text-indigo-600 font-medium transition-colors">Boats</NavLink>
+            <NavLink href="machines" class="text-gray-600 hover:text-indigo-600 font-medium transition-colors">Machinery</NavLink>
+            <NavLink href="rent-out" class="text-gray-600 hover:text-indigo-600 font-medium transition-colors">Rent Out</NavLink>
         </div>
 
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="counter">
-                <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Counter
-            </NavLink>
+        <!-- Desktop Auth Buttons -->
+        <div class="hidden md:flex items-center space-x-4">
+            <a href="/login" class="text-gray-600 hover:text-indigo-600 font-medium transition-colors">Log In</a>
+            <a href="/register" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition-all duration-300 shadow-md hover:shadow-lg">
+                Register
+            </a>
         </div>
 
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="weather">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Weather
-            </NavLink>
+        <!-- Mobile Menu Button -->
+        <div class="md:hidden">
+            <button @onclick="ToggleNavMenu" class="text-gray-600 hover:text-indigo-600 focus:outline-none">
+                <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    @if (isNavMenuOpen)
+                    {
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    }
+                    else
+                    {
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                    }
+                </svg>
+            </button>
         </div>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="auth">
-                <span class="bi bi-lock-nav-menu" aria-hidden="true"></span> Auth Required
-            </NavLink>
-        </div>
-
-        <AuthorizeView>
-            <Authorized>
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="Account/Manage">
-                        <span class="bi bi-person-fill-nav-menu" aria-hidden="true"></span> @context.User.Identity?.Name
-                    </NavLink>
-                </div>
-                <div class="nav-item px-3">
-                    <form action="Account/Logout" method="post">
-                        <AntiforgeryToken />
-                        <input type="hidden" name="ReturnUrl" value="@currentUrl" />
-                        <button type="submit" class="nav-link">
-                            <span class="bi bi-arrow-bar-left-nav-menu" aria-hidden="true"></span> Logout
-                        </button>
-                    </form>
-                </div>
-            </Authorized>
-            <NotAuthorized>
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="Account/Register">
-                        <span class="bi bi-person-nav-menu" aria-hidden="true"></span> Register
-                    </NavLink>
-                </div>
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="Account/Login">
-                        <span class="bi bi-person-badge-nav-menu" aria-hidden="true"></span> Login
-                    </NavLink>
-                </div>
-            </NotAuthorized>
-        </AuthorizeView>
     </nav>
 </div>
 
+<!-- Mobile Menu (Collapsible) -->
+<div class="@(isNavMenuOpen ? "block" : "hidden") md:hidden border-t border-gray-200">
+    <div class="px-2 pt-2 pb-3 space-y-1 sm:px-3">
+        <NavLink href="cars" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-white hover:bg-indigo-500">Cars</NavLink>
+        <NavLink href="boats" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-white hover:bg-indigo-500">Boats</NavLink>
+        <NavLink href="machines" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-white hover:bg-indigo-500">Machinery</NavLink>
+        <NavLink href="rent-out" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-white hover:bg-indigo-500">Rent Out</NavLink>
+    </div>
+    <div class="pt-4 pb-3 border-t border-gray-200">
+        <div class="px-5 space-y-2">
+            <a href="/login" class="block text-center w-full bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg">Log In</a>
+            <a href="/register" class="block text-center w-full bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg">Register</a>
+        </div>
+    </div>
+</div>
+
 @code {
-    private string? currentUrl;
+    private bool isNavMenuOpen = false;
 
-    protected override void OnInitialized()
+    private void ToggleNavMenu()
     {
-        currentUrl = NavigationManager.ToBaseRelativePath(NavigationManager.Uri);
-        NavigationManager.LocationChanged += OnLocationChanged;
-    }
-
-    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
-    {
-        currentUrl = NavigationManager.ToBaseRelativePath(e.Location);
-        StateHasChanged();
-    }
-
-    public void Dispose()
-    {
-        NavigationManager.LocationChanged -= OnLocationChanged;
+        isNavMenuOpen = !isNavMenuOpen;
     }
 }
-

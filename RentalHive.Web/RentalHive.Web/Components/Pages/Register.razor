@@ -1,0 +1,114 @@
+﻿@page "/register"
+@using RentalHive.Application.DTOs.User
+@using System.Net.Http.Json
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+
+<div class="flex items-center justify-center min-h-[80vh] bg-gray-50 px-4">
+    <div class="max-w-md w-full bg-white p-8 rounded-xl shadow-lg">
+        <div class="text-center mb-8">
+            <h2 class="text-3xl font-bold text-gray-900">Create an Account</h2>
+            <p class="text-gray-600 mt-2">Join RentalHive to start renting and earning.</p>
+        </div>
+
+        <EditForm Model="@registerModel" OnValidSubmit="HandleRegistration">
+            <DataAnnotationsValidator />
+
+            <div class="space-y-6">
+                <!-- Form Fields -->
+                <div>
+                    <label for="personnummer" class="block text-sm font-medium text-gray-700">Personal Identity Number (Personnummer)</label>
+                    <InputText id="personnummer" @bind-Value="registerModel.PersonalIdentityNumber" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
+                    <ValidationMessage For="@(() => registerModel.PersonalIdentityNumber)" class="text-red-600 text-sm mt-1" />
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="firstname" class="block text-sm font-medium text-gray-700">First Name</label>
+                        <InputText id="firstname" @bind-Value="registerModel.FirstName" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
+                        <ValidationMessage For="@(() => registerModel.FirstName)" class="text-red-600 text-sm mt-1" />
+                    </div>
+                    <div>
+                        <label for="lastname" class="block text-sm font-medium text-gray-700">Last Name</label>
+                        <InputText id="lastname" @bind-Value="registerModel.LastName" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
+                        <ValidationMessage For="@(() => registerModel.LastName)" class="text-red-600 text-sm mt-1" />
+                    </div>
+                </div>
+
+                <div>
+                    <label for="email" class="block text-sm font-medium text-gray-700">Email Address</label>
+                    <InputText type="email" id="email" @bind-Value="registerModel.Email" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
+                    <ValidationMessage For="@(() => registerModel.Email)" class="text-red-600 text-sm mt-1" />
+                </div>
+
+                <div>
+                    <label for="password" class="block text-sm font-medium text-gray-700">Password</label>
+                    <InputText type="password" id="password" @bind-Value="registerModel.Password" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
+                    <ValidationMessage For="@(() => registerModel.Password)" class="text-red-600 text-sm mt-1" />
+                </div>
+
+                <!-- Error Message Display -->
+                @if (!string.IsNullOrEmpty(errorMessage))
+                {
+                    <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-md" role="alert">
+                        <p>@errorMessage</p>
+                    </div>
+                }
+
+                <!-- Submit Button -->
+                <div>
+                    <button type="submit" disabled="@isSubmitting" class="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-indigo-400">
+                        @(isSubmitting ? "Creating Account..." : "Register")
+                    </button>
+                </div>
+            </div>
+        </EditForm>
+
+        <p class="mt-6 text-center text-sm text-gray-600">
+            Already have an account?
+            <a href="/login" class="font-medium text-indigo-600 hover:text-indigo-500">
+                Log in here
+            </a>
+        </p>
+    </div>
+</div>
+
+@code {
+    private UserRegisterDto registerModel = new();
+    private bool isSubmitting = false;
+    private string? errorMessage;
+
+    private async Task HandleRegistration()
+    {
+        isSubmitting = true;
+        errorMessage = null;
+
+        try
+        {
+            // IMPORTANT: Ensure this port matches your running RentalHive.Api project
+            var apiUrl = "http://localhost:7123/api/Auth/register";
+
+            var response = await Http.PostAsJsonAsync(apiUrl, registerModel);
+
+            if (response.IsSuccessStatusCode)
+            {
+                // Registration successful, redirect to login page
+                NavigationManager.NavigateTo("/login");
+            }
+            else
+            {
+                // Registration failed, display error from API
+                var errorContent = await response.Content.ReadAsStringAsync();
+                errorMessage = string.IsNullOrWhiteSpace(errorContent) ? "Registration failed. Please try again." : errorContent;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"An unexpected error occurred: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+}
