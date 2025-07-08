@@ -3,7 +3,6 @@
 @using System.Net.Http.Json
 @inject HttpClient Http
 @inject NavigationManager NavigationManager
-@inject IJSRuntime JSRuntime
 
 <div class="flex items-center justify-center min-h-[80vh] bg-gray-50 px-4">
     <div class="max-w-md w-full bg-white p-8 rounded-xl shadow-lg">
@@ -12,7 +11,7 @@
             <p class="text-gray-600 mt-2">Join RentalHive to start renting and earning.</p>
         </div>
 
-        <EditForm Model="@registerModel" OnValidSubmit="HandleRegistration">
+        <EditForm Model="@registerModel" OnValidSubmit="HandleRegistration" formname="register-form">
             <DataAnnotationsValidator />
             <div class="space-y-6">
                 <!-- Other input fields -->
@@ -23,14 +22,7 @@
                 </div>
                 <InputText type="email" @bind-Value="registerModel.Email" placeholder="Email Address" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" />
                 <InputText @bind-Value="registerModel.PhoneNumber" placeholder="Phone Number" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" />
-
-                <!-- Address Input with Google Autocomplete -->
-                <div>
-                    <label for="address-input" class="block text-sm font-medium text-gray-700">Address</label>
-                    <input id="address-input" @bind-value="registerModel.Address" placeholder="Start typing your address..." class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" />
-                    <ValidationMessage For="@(() => registerModel.Address)" class="text-red-600 text-sm mt-1" />
-                </div>
-
+                <InputText @bind-Value="registerModel.Address" placeholder="Address" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" />
                 <InputText type="password" @bind-Value="registerModel.Password" placeholder="Password" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" />
 
                 <!-- Error and Submit Button -->
@@ -50,28 +42,34 @@
     private UserRegisterDto registerModel = new();
     private bool isSubmitting = false;
     private string? errorMessage;
-    private DotNetObjectReference<Register> objRef;
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    private async Task HandleRegistration()
     {
-        if (firstRender)
+        isSubmitting = true;
+        errorMessage = null;
+
+        try
         {
-            objRef = DotNetObjectReference.Create(this);
-            await JSRuntime.InvokeVoidAsync("initAddressAutocomplete", "address-input", objRef);
+            var apiUrl = "http://localhost:7123/api/Auth/register";
+            var response = await Http.PostAsJsonAsync(apiUrl, registerModel);
+
+            if (response.IsSuccessStatusCode)
+            {
+                NavigationManager.NavigateTo("/login");
+            }
+            else
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                errorMessage = string.IsNullOrWhiteSpace(errorContent) ? "Registration failed. Please try again." : errorContent;
+            }
         }
-    }
-
-    [JSInvokable]
-    public void UpdateAddress(string formattedAddress)
-    {
-        registerModel.Address = formattedAddress;
-        StateHasChanged(); // Notify Blazor that the model has changed
-    }
-
-    private async Task HandleRegistration() { /* ... existing code ... */ }
-
-    public void Dispose()
-    {
-        objRef?.Dispose();
+        catch (Exception ex)
+        {
+            errorMessage = $"An unexpected error occurred: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
     }
 }

@@ -13,7 +13,7 @@
             <p class="text-gray-600 mt-2">Log in to your RentalHive account.</p>
         </div>
 
-        <EditForm Model="@loginModel" OnValidSubmit="HandleLogin">
+        <EditForm Model="@loginModel" OnValidSubmit="HandleLogin" formname="login-form">
             <DataAnnotationsValidator />
             <div class="space-y-6">
                 <div>
@@ -46,5 +46,42 @@
     private string? errorMessage;
     private class LoginResponse { public string Token { get; set; } }
 
-    private async Task HandleLogin() { /* ... existing code ... */ }
+    private async Task HandleLogin()
+    {
+        isSubmitting = true;
+        errorMessage = null;
+
+        try
+        {
+            var apiUrl = "http://localhost:7123/api/Auth/login";
+
+            var response = await Http.PostAsJsonAsync(apiUrl, loginModel);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<LoginResponse>();
+                if (result?.Token != null)
+                {
+                    await AuthService.LoginAsync(result.Token);
+                    NavigationManager.NavigateTo("/");
+                }
+                else
+                {
+                    errorMessage = "Failed to retrieve authentication token.";
+                }
+            }
+            else
+            {
+                errorMessage = "Invalid credentials. Please try again.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"An unexpected error occurred: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
 }
