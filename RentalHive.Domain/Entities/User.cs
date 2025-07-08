@@ -6,11 +6,12 @@
     public class User
     {
         public int Id { get; set; }
-        public string FirstName { get; set; }
-        public string LastName { get; set; }
-        public string Email { get; set; }
-        public string HashedPassword { get; set; }
+        public required string FirstName { get; set; }
+        public required string LastName { get; set; }
+        public required string Email { get; set; }
+        public required string HashedPassword { get; set; }
         public DateTime MemberSince { get; set; }
+        public required string PersonalIdentityNumber { get; set; }
 
         // Navigation property for items owned by the user
         public virtual ICollection<RentalItem> OwnedItems { get; set; } = new List<RentalItem>();

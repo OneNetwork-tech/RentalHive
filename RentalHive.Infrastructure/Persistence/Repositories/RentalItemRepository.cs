@@ -1,6 +1,8 @@
 ﻿using RentalHive.Application.Contracts.Persistence;
 using RentalHive.Domain.Entities;
 using RentalHive.Infrastructure.Persistence.DatabaseContext;
+// Ensure the correct namespace for IRentalItemRepository is included
+// If IRentalItemRepository is in a different namespace, add the using directive here
 
 namespace RentalHive.Infrastructure.Persistence.Repositories
 {
