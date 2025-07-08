@@ -4,8 +4,6 @@
 @using RentalHive.Web.Services
 @inherits LayoutComponentBase
 
-inject IAuthService AuthService
-
 @inject NavigationManager NavigationManager
 
 
@@ -106,7 +104,7 @@ inject IAuthService AuthService
 
     private async Task HandleLogout()
     {
-        await AuthService.LogoutAsync();
+        // await AuthService.LogoutAsync();
         NavigationManager.NavigateTo("/"); // Redirect to home page after logout
     }
 }
