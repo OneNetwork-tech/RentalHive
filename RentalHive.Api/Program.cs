@@ -5,7 +5,7 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 
 // 1. Register services from our Infrastructure layer (DbContext, Repositories)
-builder.Services.AddInfrastructureServices(builder.Configuration);
+//builder.Services.AddInfrastructureServices(builder.Configuration);
 
 
 builder.Services.AddControllers();

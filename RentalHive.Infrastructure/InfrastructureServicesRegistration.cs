@@ -1,20 +1,18 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using RentalHive.Application.Contracts.Identity;
 using RentalHive.Application.Contracts.Persistence;
+using RentalHive.Infrastructure.Identity;
 using RentalHive.Infrastructure.Persistence.DatabaseContext;
 using RentalHive.Infrastructure.Persistence.Repositories;
 
 namespace RentalHive.Infrastructure
 {
-    /// <summary>
-    /// Extension method to register all Infrastructure layer services.
-    /// </summary>
     public static class InfrastructureServicesRegistration
     {
         public static IServiceCollection AddInfrastructureServices(this IServiceCollection services, IConfiguration configuration)
         {
-            // Configure the DbContext to use PostgreSQL
             services.AddDbContext<RentalHiveDbContext>(options =>
                 options.UseNpgsql(configuration.GetConnectionString("RentalHiveConnectionString")));
 
@@ -23,6 +21,10 @@ namespace RentalHive.Infrastructure
             services.AddScoped<IUserRepository, UserRepository>();
             services.AddScoped<IBookingRepository, BookingRepository>();
             services.AddScoped<IRentalItemRepository, RentalItemRepository>();
+
+            // Register new identity services
+            services.AddTransient<IPasswordHasher, PasswordHasher>();
+            services.AddTransient<IJwtTokenGenerator, JwtTokenGenerator>();
 
             return services;
         }

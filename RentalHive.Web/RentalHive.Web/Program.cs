@@ -13,14 +13,23 @@ builder.Services.AddRazorComponents()
 
 builder.Services.AddHttpClient();
 
-// 1. Add Blazor's core authorization services.
+// --- FIX STARTS HERE ---
+
+// 1. Add the core Authentication services.
+// We provide a default scheme that our custom provider will override.
+// This call is necessary to register the IAuthenticationService.
+builder.Services.AddAuthentication("CustomAuth");
+
+// 2. Add Blazor's core Authorization services.
 builder.Services.AddAuthorizationCore();
 
-// 2. Register our custom AuthenticationStateProvider as the primary one.
+// 3. Register our custom AuthenticationStateProvider as the primary one.
 builder.Services.AddScoped<CustomAuthenticationStateProvider>();
 builder.Services.AddScoped<AuthenticationStateProvider>(provider => provider.GetRequiredService<CustomAuthenticationStateProvider>());
 
-// 3. Register our custom AuthService for handling login/logout logic.
+// --- FIX ENDS HERE ---
+
+// 4. Register our custom AuthService for handling login/logout logic.
 builder.Services.AddScoped<IAuthService, AuthService>();
 
 
@@ -34,7 +43,6 @@ if (app.Environment.IsDevelopment())
 else
 {
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
 

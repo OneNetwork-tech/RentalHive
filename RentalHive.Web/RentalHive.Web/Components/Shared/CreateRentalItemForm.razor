@@ -1,0 +1,90 @@
+﻿@using RentalHive.Application.DTOs.RentalItem
+@using System.Net.Http.Json
+@using System.Security.Claims
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+
+<div class="bg-white p-8 rounded-xl shadow-lg">
+    <EditForm Model="@createModel" OnValidSubmit="HandleCreateItem" formname="create-item-form">
+        <DataAnnotationsValidator />
+
+        <div class="space-y-6">
+            <!-- Common Fields -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Category</label>
+                <InputSelect @bind-Value="createModel.Category" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                    <option value="">Select a category...</option>
+                    <option value="Car">Car</option>
+                    <option value="Boat">Boat</option>
+                    <option value="Machine">Machine</option>
+                </InputSelect>
+                <ValidationMessage For="@(() => createModel.Category)" />
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Listing Title</label>
+                <InputText @bind-Value="createModel.Name" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" />
+                <ValidationMessage For="@(() => createModel.Name)" />
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Daily Rate (SEK)</label>
+                <InputNumber @bind-Value="createModel.DailyRate" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" />
+                <ValidationMessage For="@(() => createModel.DailyRate)" />
+            </div>
+
+            <!-- Dynamic Fields based on Category -->
+            @if (createModel.Category == "Car")
+            {
+                <div class="p-4 border-t border-gray-200 mt-6 space-y-4">
+                    <h3 class="text-lg font-medium text-gray-800">Car Details</h3>
+                    <InputText @bind-Value="createModel.Make" placeholder="Make (e.g., Volvo)" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" />
+                    <InputText @bind-Value="createModel.Model" placeholder="Model (e.g., XC60)" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" />
+                </div>
+            }
+
+            <!-- Add similar blocks for Boat and Machine -->
+
+            <button type="submit" class="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700">
+                Submit Listing
+            </button>
+        </div>
+    </EditForm>
+</div>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticationStateTask { get; set; }
+
+    private RentalItemCreateDto createModel = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await authenticationStateTask;
+        var user = authState.User;
+
+        if (user.Identity.IsAuthenticated)
+        {
+            var userIdClaim = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (int.TryParse(userIdClaim, out var userId))
+            {
+                createModel.OwnerId = userId;
+            }
+        }
+    }
+
+    private async Task HandleCreateItem()
+    {
+        var apiUrl = "http://localhost:7123/api/RentalItems";
+        var response = await Http.PostAsJsonAsync(apiUrl, createModel);
+
+        if (response.IsSuccessStatusCode)
+        {
+            NavigationManager.NavigateTo("/"); // Or to a "My Listings" page
+        }
+        else
+        {
+            // Handle error
+        }
+    }
+}

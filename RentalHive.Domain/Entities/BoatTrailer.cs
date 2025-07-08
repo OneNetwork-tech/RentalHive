@@ -1,13 +1,12 @@
 ﻿namespace RentalHive.Domain.Entities
 {
     /// <summary>
-    /// Represents a boat available for rent. Inherits from RentalItem.
+    /// Represents a specialized trailer for transporting boats. Inherits from Trailer.
+    /// This class must be public to be accessible by other projects.
     /// </summary>
-    public class Boat : RentalItem
+    public class BoatTrailer : Trailer
     {
-        public string BoatType { get; set; } // e.g., "Sailboat", "Motorboat", "Jet Ski"
-        public int LengthInFeet { get; set; }
-        public int Capacity { get; set; } // Number of people
-        public bool RequiresLicense { get; set; }
+        public int MaxBoatLengthInFeet { get; set; }
+        public bool IsSubmersible { get; set; }
     }
 }

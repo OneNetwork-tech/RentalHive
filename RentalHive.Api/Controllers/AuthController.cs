@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using RentalHive.Application.Contracts.Identity;
 using RentalHive.Application.Contracts.Persistence;
 using RentalHive.Application.DTOs.User;
 using RentalHive.Domain.Entities;
@@ -10,21 +11,23 @@ namespace RentalHive.Api.Controllers
     public class AuthController : ControllerBase
     {
         private readonly IUserRepository _userRepository;
+        private readonly IPasswordHasher _passwordHasher;
+        private readonly IJwtTokenGenerator _jwtTokenGenerator;
 
-        public AuthController(IUserRepository userRepository)
+        public AuthController(
+            IUserRepository userRepository,
+            IPasswordHasher passwordHasher,
+            IJwtTokenGenerator jwtTokenGenerator)
         {
             _userRepository = userRepository;
+            _passwordHasher = passwordHasher;
+            _jwtTokenGenerator = jwtTokenGenerator;
         }
 
         [HttpPost("register")]
-        [ProducesResponseType(StatusCodes.Status201Created)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> Register(UserRegisterDto registerDto)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
-
-            if (!await _userRepository.IsPersonalIdentityNumberUnique(registerDto.PersonalIdentityNumber))
-                return BadRequest("Personal Identity Number already exists.");
 
             if (!await _userRepository.IsEmailUnique(registerDto.Email))
                 return BadRequest("Email address already exists.");
@@ -37,7 +40,7 @@ namespace RentalHive.Api.Controllers
                 Email = registerDto.Email,
                 PhoneNumber = registerDto.PhoneNumber,
                 Address = registerDto.Address,
-                HashedPassword = registerDto.Password, // Placeholder for hashing
+                HashedPassword = _passwordHasher.HashPassword(registerDto.Password),
                 MemberSince = DateTime.UtcNow
             };
 
@@ -46,20 +49,18 @@ namespace RentalHive.Api.Controllers
         }
 
         [HttpPost("login")]
-        [ProducesResponseType(typeof(string), StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> Login(UserLoginDto loginDto)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
 
             var user = await _userRepository.GetUserByIdentifierAsync(loginDto.LoginIdentifier);
 
-            if (user == null || user.HashedPassword != loginDto.Password) // Placeholder for hash verification
+            if (user == null || !_passwordHasher.VerifyPassword(user.HashedPassword, loginDto.Password))
             {
                 return Unauthorized("Invalid credentials.");
             }
 
-            var token = "dummy.jwt.token"; // Placeholder for real token generation
+            var token = _jwtTokenGenerator.GenerateToken(user);
             return Ok(new { Token = token });
         }
     }
