@@ -1,22 +1,22 @@
-using RentalHive.Infrastructure; // For AddInfrastructureServices
+using RentalHive.Infrastructure; // This is the crucial using directive
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
 
-// 1. Register services from our Infrastructure layer (DbContext, Repositories)
+// including the DbContext, IUserRepository, IPasswordHasher, etc.
 //builder.Services.AddInfrastructureServices(builder.Configuration);
+// --- FIX ENDS HERE ---
 
 
 builder.Services.AddControllers();
 
-// 2. Add API Documentation (Swagger)
+// Add API Documentation (Swagger)
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options => {
     options.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo { Title = "RentalHive API", Version = "v1" });
 });
 
-// 3. Add CORS policy to allow our Blazor app to communicate with the API
+// Add CORS policy to allow your Blazor app to communicate with the API
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", b => b.AllowAnyHeader().AllowAnyOrigin().AllowAnyMethod());
@@ -38,8 +38,6 @@ app.UseHttpsRedirection();
 // Use the CORS policy
 app.UseCors("AllowAll");
 
-// In a real app, you would add authentication middleware here
-// app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();

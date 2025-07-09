@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Components.Authorization;
-using RentalHive.Web;
 using RentalHive.Web.Auth;
 using RentalHive.Web.Components;
 using RentalHive.Web.Services;
@@ -13,12 +12,21 @@ builder.Services.AddRazorComponents()
 
 builder.Services.AddHttpClient();
 
-// --- FIX STARTS HERE ---
+builder.Services.AddAuthentication(options =>
+{
+options.DefaultScheme = "CustomAuthScheme";
+    options.DefaultChallengeScheme = "CustomAuthScheme";
+})
+    .AddCookie("CustomAuthScheme", options =>
+    {
+        options.LoginPath = "/login"; // Path to your login page
+        options.LogoutPath = "/logout"; // Path to your logout page
+        options.AccessDeniedPath = "/access-denied"; // Path for access denied
+    });
 
-// 1. Add the core Authentication services.
-// We provide a default scheme that our custom provider will override.
-// This call is necessary to register the IAuthenticationService.
-builder.Services.AddAuthentication("CustomAuth");
+
+
+//builder.Services.AddAuthentication("CustomAuth");
 
 // 2. Add Blazor's core Authorization services.
 builder.Services.AddAuthorizationCore();
@@ -50,6 +58,10 @@ app.UseHttpsRedirection();
 
 app.UseStaticFiles();
 app.UseAntiforgery();
+
+// IMPORTANT: Add authentication and authorization middleware to the pipeline.
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode()
