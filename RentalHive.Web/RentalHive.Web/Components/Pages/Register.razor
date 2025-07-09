@@ -1,4 +1,6 @@
 ﻿@page "/register"
+@rendermode InteractiveServer
+
 @using RentalHive.Application.DTOs.User
 @using System.Net.Http.Json
 @inject HttpClient Http
@@ -19,7 +21,7 @@
             <div class="space-y-6">
                 <div>
                     <label for="personnummer" class="block text-sm font-medium text-gray-700">Personal Identity Number (Personnummer)</label>
-                    <InputText id="personnummer" @bind-Value="registerModel.PersonalIdentityNumber" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
+                    <InputText id="personnummer" @bind-Value="registerModel.PersonalIdentityNumber" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" />
                     <ValidationMessage For="@(() => registerModel.PersonalIdentityNumber)" class="text-red-600 text-sm mt-1" />
                 </div>
 
@@ -50,7 +52,6 @@
 
                 <div>
                     <label for="address-input" class="block text-sm font-medium text-gray-700">Address</label>
-                    <!-- We use one-way binding 'value' and '@oninput' to avoid conflicts with the JS library -->
                     <input id="address-input"
                            value="@registerModel.Address"
                            @oninput="@((e) => { registerModel.Address = e.Value?.ToString(); })"
