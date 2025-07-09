@@ -1,10 +1,12 @@
+using Microsoft.EntityFrameworkCore;
 using RentalHive.Infrastructure; // This is the crucial using directive
+using RentalHive.Infrastructure.Persistence.DatabaseContext;
 
 var builder = WebApplication.CreateBuilder(args);
 
 
 // including the DbContext, IUserRepository, IPasswordHasher, etc.
-//builder.Services.AddInfrastructureServices(builder.Configuration);
+builder.Services.AddInfrastructureServices(builder.Configuration);
 // --- FIX ENDS HERE ---
 
 
@@ -24,6 +26,13 @@ builder.Services.AddCors(options =>
 
 
 var app = builder.Build();
+
+// Ensure database is created and migrations are applied at startup
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<RentalHiveDbContext>();
+    db.Database.Migrate();
+}
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
