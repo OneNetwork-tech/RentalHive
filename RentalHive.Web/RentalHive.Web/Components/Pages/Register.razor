@@ -117,7 +117,8 @@
 
         try
         {
-            var apiUrl = "http://localhost:7105/api/Auth/register";
+            // The API URL now correctly uses https to match the launchSettings.json
+            var apiUrl = "https://localhost:7105/api/Auth/register";
             var response = await Http.PostAsJsonAsync(apiUrl, registerModel);
 
             if (response.IsSuccessStatusCode)

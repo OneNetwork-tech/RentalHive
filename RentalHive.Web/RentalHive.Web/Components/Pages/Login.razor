@@ -1,4 +1,6 @@
 ﻿@page "/login"
+@rendermode InteractiveServer
+
 @using RentalHive.Application.DTOs.User
 @using RentalHive.Web.Services
 @using System.Net.Http.Json
@@ -60,7 +62,7 @@
 
         try
         {
-            var apiUrl = "http://localhost:7105/api/Auth/login"; // Ensure port is correct
+            var apiUrl = "https://localhost:7105/api/Auth/login";
 
             var response = await Http.PostAsJsonAsync(apiUrl, loginModel);
 
