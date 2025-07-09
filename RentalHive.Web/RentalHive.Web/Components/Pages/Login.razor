@@ -37,6 +37,13 @@
                 </button>
             </div>
         </EditForm>
+
+        <p class="mt-8 text-center text-sm text-gray-600">
+            New to RentalHive?
+            <a href="/register" class="font-medium text-indigo-600 hover:text-indigo-500">
+                Create an account
+            </a>
+        </p>
     </div>
 </div>
 
@@ -53,7 +60,7 @@
 
         try
         {
-            var apiUrl = "http://localhost:7123/api/Auth/login";
+            var apiUrl = "http://localhost:7105/api/Auth/login"; // Ensure port is correct
 
             var response = await Http.PostAsJsonAsync(apiUrl, loginModel);
 

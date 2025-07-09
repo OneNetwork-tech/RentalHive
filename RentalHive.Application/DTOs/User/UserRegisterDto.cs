@@ -1,10 +1,12 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using RentalHive.Application.Validation; // Add this using directive
+using System.ComponentModel.DataAnnotations;
 
 namespace RentalHive.Application.DTOs.User
 {
     public class UserRegisterDto
     {
-        [Required]
+        [Required(ErrorMessage = "Personnummer is required.")]
+        [Personnummer] // Apply our custom validation attribute
         public string PersonalIdentityNumber { get; set; }
 
         [Required]
@@ -24,7 +26,7 @@ namespace RentalHive.Application.DTOs.User
         public string Address { get; set; }
 
         [Required]
-        [MinLength(8)]
+        [MinLength(8, ErrorMessage = "Password must be at least 8 characters long.")]
         public string Password { get; set; }
     }
 }

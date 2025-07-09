@@ -18,6 +18,29 @@ namespace RentalHive.Api.Controllers
             _userRepository = userRepository;
         }
 
+        [HttpGet]
+        [ProducesResponseType(typeof(IEnumerable<RentalItem>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetAllRentalItems()
+        {
+            var allItems = await _rentalItemRepository.GetAllAsync();
+            return Ok(allItems);
+        }
+
+        [HttpGet("{id}")]
+        [ProducesResponseType(typeof(RentalItem), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> GetRentalItemById(int id)
+        {
+            var item = await _rentalItemRepository.GetByIdAsync(id);
+
+            if (item == null)
+            {
+                return NotFound();
+            }
+
+            return Ok(item);
+        }
+
         [HttpPost]
         public async Task<IActionResult> CreateRentalItem([FromBody] RentalItemCreateDto createDto)
         {
@@ -47,7 +70,25 @@ namespace RentalHive.Api.Controllers
                         FuelType = createDto.FuelType
                     };
                     break;
-                // Add cases for "boat", "machine", etc. here
+
+                case "boat":
+                    newItem = new Boat
+                    {
+                        BoatType = createDto.BoatType,
+                        LengthInFeet = createDto.LengthInFeet ?? 0,
+                        Capacity = createDto.Capacity ?? 0
+                    };
+                    break;
+
+                case "machine":
+                    newItem = new Machine
+                    {
+                        MachineType = createDto.MachineType,
+                        Horsepower = createDto.Horsepower ?? 0,
+                        WeightInKg = createDto.WeightInKg ?? 0
+                    };
+                    break;
+
                 default:
                     return BadRequest("Invalid category specified.");
             }

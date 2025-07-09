@@ -1,0 +1,12 @@
+﻿<div class="col-span-1">
+    <dt class="text-gray-500">@Label</dt>
+    <dd class="text-gray-900 font-semibold">@(Value ?? "N/A")</dd>
+</div>
+
+@code {
+    [Parameter]
+    public string Label { get; set; }
+
+    [Parameter]
+    public string? Value { get; set; }
+}

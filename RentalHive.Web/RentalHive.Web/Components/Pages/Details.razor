@@ -1,0 +1,133 @@
+﻿@page "/details/{id:int}"
+@using System.Text.Json
+@inject HttpClient Http
+
+<div class="container mx-auto px-4 py-8">
+    @if (isLoading)
+    {
+        <p class="text-center text-gray-600 text-lg"><em>Loading details...</em></p>
+    }
+    else if (rentalItem != null)
+    {
+        <div class="max-w-4xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden">
+            <div class="grid grid-cols-1 md:grid-cols-2">
+                <!-- Image Section -->
+                <div class="p-4">
+                    <img src="https://placehold.co/800x600/334155/ffffff?text=@(Uri.EscapeDataString(rentalItem.Name))" alt="@rentalItem.Name" class="w-full h-full object-cover rounded-lg">
+                </div>
+
+                <!-- Details & Booking Section -->
+                <div class="p-8 flex flex-col">
+                    <h1 class="text-3xl font-bold text-gray-900 mb-2">@rentalItem.Name</h1>
+                    <p class="text-gray-600 mb-6">@rentalItem.Description</p>
+
+                    <div class="border-t border-b border-gray-200 py-6 mb-6 space-y-4">
+                        <h3 class="text-lg font-semibold text-gray-800">Specifications</h3>
+                        <div class="grid grid-cols-2 gap-4 text-sm">
+                            @switch (rentalItem.Discriminator)
+                            {
+                                case "Car":
+                                case "Van":
+                                case "Minibus":
+                                case "LightTruck":
+                                    <DetailItem Label="Make" Value="@rentalItem.Make" />
+                                    <DetailItem Label="Model" Value="@rentalItem.Model" />
+                                    <DetailItem Label="Year" Value="@rentalItem.Year?.ToString()" />
+                                    <DetailItem Label="Seats" Value="@rentalItem.NumberOfSeats?.ToString()" />
+                                    <DetailItem Label="Transmission" Value="@rentalItem.TransmissionType" />
+                                    <DetailItem Label="Fuel Type" Value="@rentalItem.FuelType" />
+                                    break;
+                                case "Boat":
+                                    <DetailItem Label="Type" Value="@rentalItem.BoatType" />
+                                    <DetailItem Label="Length" Value="@($"{rentalItem.LengthInFeet} ft")" />
+                                    <DetailItem Label="Capacity" Value="@($"{rentalItem.Capacity} persons")" />
+                                    break;
+                                case "Machine":
+                                    <DetailItem Label="Type" Value="@rentalItem.MachineType" />
+                                    <DetailItem Label="Horsepower" Value="@($"{rentalItem.Horsepower} hp")" />
+                                    <DetailItem Label="Weight" Value="@($"{rentalItem.WeightInKg} kg")" />
+                                    break;
+                            }
+                        </div>
+                    </div>
+
+                    <div class="mt-auto">
+                        <div class="flex justify-between items-center mb-4">
+                            <p class="text-2xl font-bold text-gray-900">
+                                @rentalItem.DailyRate.ToString("C", new System.Globalization.CultureInfo("sv-SE"))
+                                <span class="text-base font-normal text-gray-600">/ day</span>
+                            </p>
+                        </div>
+                        <button class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg transition-all duration-300">
+                            Book Now
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="text-center">
+            <h2 class="text-2xl font-bold text-red-600">Item Not Found</h2>
+            <p class="text-gray-600 mt-2">Sorry, we couldn't find the item you're looking for.</p>
+            <a href="/" class="mt-4 inline-block bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg">Back to Home</a>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private RentalItemViewModel? rentalItem;
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var apiUrl = $"http://localhost:7105/api/RentalItems/{Id}"; // Ensure port is correct
+            
+            var response = await Http.GetAsync(apiUrl);
+            if (response.IsSuccessStatusCode)
+            {
+                var jsonString = await response.Content.ReadAsStringAsync();
+                rentalItem = JsonSerializer.Deserialize<RentalItemViewModel>(jsonString, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error fetching item details: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    // You can reuse the same view model from the Home page
+    public class RentalItemViewModel
+    {
+        public int Id { get; set; }
+        public string Name { get; set; }
+        public string Description { get; set; }
+        public decimal DailyRate { get; set; }
+        public string Discriminator { get; set; }
+        public string? Make { get; set; }
+        public string? Model { get; set; }
+        public int? Year { get; set; }
+        public int? NumberOfSeats { get; set; }
+        public string? TransmissionType { get; set; }
+        public string? FuelType { get; set; }
+        public string? BoatType { get; set; }
+        public int? LengthInFeet { get; set; }
+        public int? Capacity { get; set; }
+        public string? MachineType { get; set; }
+        public int? Horsepower { get; set; }
+        public double? WeightInKg { get; set; }
+    }
+}

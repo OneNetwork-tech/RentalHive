@@ -3,8 +3,10 @@
 @using System.Net.Http.Json
 @inject HttpClient Http
 @inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+@implements IDisposable
 
-<div class="flex items-center justify-center min-h-[80vh] bg-gray-50 px-4">
+<div class="flex items-center justify-center min-h-[80vh] bg-gray-50 px-4 py-12">
     <div class="max-w-md w-full bg-white p-8 rounded-xl shadow-lg">
         <div class="text-center mb-8">
             <h2 class="text-3xl font-bold text-gray-900">Create an Account</h2>
@@ -13,28 +15,75 @@
 
         <EditForm Model="@registerModel" OnValidSubmit="HandleRegistration" formname="register-form">
             <DataAnnotationsValidator />
-            <div class="space-y-6">
-                <!-- Other input fields -->
-                <InputText @bind-Value="registerModel.PersonalIdentityNumber" placeholder="Personal Identity Number" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" />
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <InputText @bind-Value="registerModel.FirstName" placeholder="First Name" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" />
-                    <InputText @bind-Value="registerModel.LastName" placeholder="Last Name" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" />
-                </div>
-                <InputText type="email" @bind-Value="registerModel.Email" placeholder="Email Address" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" />
-                <InputText @bind-Value="registerModel.PhoneNumber" placeholder="Phone Number" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" />
-                <InputText @bind-Value="registerModel.Address" placeholder="Address" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" />
-                <InputText type="password" @bind-Value="registerModel.Password" placeholder="Password" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" />
 
-                <!-- Error and Submit Button -->
+            <div class="space-y-6">
+                <div>
+                    <label for="personnummer" class="block text-sm font-medium text-gray-700">Personal Identity Number (Personnummer)</label>
+                    <InputText id="personnummer" @bind-Value="registerModel.PersonalIdentityNumber" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
+                    <ValidationMessage For="@(() => registerModel.PersonalIdentityNumber)" class="text-red-600 text-sm mt-1" />
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="firstname" class="block text-sm font-medium text-gray-700">First Name</label>
+                        <InputText id="firstname" @bind-Value="registerModel.FirstName" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" />
+                        <ValidationMessage For="@(() => registerModel.FirstName)" class="text-red-600 text-sm mt-1" />
+                    </div>
+                    <div>
+                        <label for="lastname" class="block text-sm font-medium text-gray-700">Last Name</label>
+                        <InputText id="lastname" @bind-Value="registerModel.LastName" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" />
+                        <ValidationMessage For="@(() => registerModel.LastName)" class="text-red-600 text-sm mt-1" />
+                    </div>
+                </div>
+
+                <div>
+                    <label for="email" class="block text-sm font-medium text-gray-700">Email Address</label>
+                    <InputText type="email" id="email" @bind-Value="registerModel.Email" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" />
+                    <ValidationMessage For="@(() => registerModel.Email)" class="text-red-600 text-sm mt-1" />
+                </div>
+
+                <div>
+                    <label for="phone" class="block text-sm font-medium text-gray-700">Phone Number</label>
+                    <InputText id="phone" @bind-Value="registerModel.PhoneNumber" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" />
+                    <ValidationMessage For="@(() => registerModel.PhoneNumber)" class="text-red-600 text-sm mt-1" />
+                </div>
+
+                <div>
+                    <label for="address-input" class="block text-sm font-medium text-gray-700">Address</label>
+                    <!-- We use one-way binding 'value' and '@oninput' to avoid conflicts with the JS library -->
+                    <input id="address-input"
+                           value="@registerModel.Address"
+                           @oninput="@((e) => { registerModel.Address = e.Value?.ToString(); })"
+                           placeholder="Start typing your address..."
+                           class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" />
+                    <ValidationMessage For="@(() => registerModel.Address)" class="text-red-600 text-sm mt-1" />
+                </div>
+
+                <div>
+                    <label for="password" class="block text-sm font-medium text-gray-700">Password</label>
+                    <InputText type="password" id="password" @bind-Value="registerModel.Password" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" />
+                    <ValidationMessage For="@(() => registerModel.Password)" class="text-red-600 text-sm mt-1" />
+                </div>
+
                 @if (!string.IsNullOrEmpty(errorMessage))
                 {
-                    <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-md" role="alert"><p>@errorMessage</p></div>
+                    <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-md" role="alert">
+                        <p>@errorMessage</p>
+                    </div>
                 }
+
                 <button type="submit" disabled="@isSubmitting" class="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400">
                     @(isSubmitting ? "Creating Account..." : "Register")
                 </button>
             </div>
         </EditForm>
+
+        <p class="mt-8 text-center text-sm text-gray-600">
+            Already have an account?
+            <a href="/login" class="font-medium text-indigo-600 hover:text-indigo-500">
+                Log in here
+            </a>
+        </p>
     </div>
 </div>
 
@@ -42,6 +91,23 @@
     private UserRegisterDto registerModel = new();
     private bool isSubmitting = false;
     private string? errorMessage;
+    private DotNetObjectReference<Register>? objRef;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            objRef = DotNetObjectReference.Create(this);
+            await JSRuntime.InvokeVoidAsync("initAddressAutocomplete", "address-input", objRef);
+        }
+    }
+
+    [JSInvokable]
+    public void UpdateAddress(string formattedAddress)
+    {
+        registerModel.Address = formattedAddress;
+        StateHasChanged();
+    }
 
     private async Task HandleRegistration()
     {
@@ -50,7 +116,7 @@
 
         try
         {
-            var apiUrl = "http://localhost:7123/api/Auth/register";
+            var apiUrl = "http://localhost:7105/api/Auth/register";
             var response = await Http.PostAsJsonAsync(apiUrl, registerModel);
 
             if (response.IsSuccessStatusCode)
@@ -71,5 +137,10 @@
         {
             isSubmitting = false;
         }
+    }
+
+    public void Dispose()
+    {
+        objRef?.Dispose();
     }
 }
