@@ -1,67 +1,69 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using RentalHive.Application.Contracts.Identity;
-using RentalHive.Application.Contracts.Persistence;
-using RentalHive.Application.DTOs.User;
-using RentalHive.Domain.Entities;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
+using RentalHive.Application.Contracts;
+using RentalHive.Application.Dtos;
 
-namespace RentalHive.Api.Controllers
+namespace RentalHive.Api.Controllers;
+
+public sealed record TokenResponse(string AccessToken, DateTime ExpiresUtc, UserSummaryResponse User);
+
+public sealed record UserSummaryResponse(int Id, string Email, string FirstName, string LastName, string DisplayName)
 {
-    [Route("api/[controller]")]
-    [ApiController]
-    public class AuthController : ControllerBase
+    public static UserSummaryResponse From(UserSummary u) => new(u.Id, u.Email, u.FirstName, u.LastName, u.DisplayName);
+}
+
+[ApiController]
+[Route("api/auth")]
+[EnableRateLimiting(RateLimits.Auth)]
+public sealed class AuthController(IAccountService accounts, TokenService tokens) : ControllerBase
+{
+    [HttpPost("register")]
+    [AllowAnonymous]
+    [ProducesResponseType<TokenResponse>(StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> Register(RegisterRequest request, CancellationToken ct)
     {
-        private readonly IUserRepository _userRepository;
-        private readonly IPasswordHasher _passwordHasher;
-        private readonly IJwtTokenGenerator _jwtTokenGenerator;
+        var user = await accounts.RegisterAsync(request, ct);
+        var (token, expires) = tokens.Issue(user);
+        return StatusCode(StatusCodes.Status201Created, new TokenResponse(token, expires, UserSummaryResponse.From(user)));
+    }
 
-        public AuthController(
-            IUserRepository userRepository,
-            IPasswordHasher passwordHasher,
-            IJwtTokenGenerator jwtTokenGenerator)
+    [HttpPost("login")]
+    [AllowAnonymous]
+    [ProducesResponseType<TokenResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> Login(LoginRequest request, CancellationToken ct)
+    {
+        var result = await accounts.LoginAsync(request, ct);
+        return result.Outcome switch
         {
-            _userRepository = userRepository;
-            _passwordHasher = passwordHasher;
-            _jwtTokenGenerator = jwtTokenGenerator;
-        }
+            LoginOutcome.Success => Ok(new TokenResponse(tokens.Issue(result.User!).Token, tokens.Issue(result.User!).ExpiresUtc, UserSummaryResponse.From(result.User!))),
+            LoginOutcome.LockedOut => Problem(statusCode: StatusCodes.Status401Unauthorized, title: "Too many failed attempts. Try again later."),
+            _ => Problem(statusCode: StatusCodes.Status401Unauthorized, title: "Invalid credentials."),
+        };
+    }
+}
 
-        [HttpPost("register")]
-        public async Task<IActionResult> Register(UserRegisterDto registerDto)
-        {
-            if (!ModelState.IsValid) return BadRequest(ModelState);
+[ApiController]
+[Route("api/me")]
+[Authorize]
+public sealed class MeController(IAccountService accounts, TokenService tokens) : ControllerBase
+{
+    [HttpGet]
+    public Task<ProfileDto> Get(CancellationToken ct) => accounts.GetProfileAsync(User.UserId(), ct);
 
-            if (!await _userRepository.IsEmailUnique(registerDto.Email))
-                return BadRequest("Email address already exists.");
+    [HttpPut]
+    public Task<ProfileDto> Update(UpdateProfileRequest request, CancellationToken ct) => accounts.UpdateProfileAsync(User.UserId(), request, ct);
 
-            var user = new User
-            {
-                PersonalIdentityNumber = registerDto.PersonalIdentityNumber,
-                FirstName = registerDto.FirstName,
-                LastName = registerDto.LastName,
-                Email = registerDto.Email,
-                PhoneNumber = registerDto.PhoneNumber,
-                Address = registerDto.Address,
-                HashedPassword = _passwordHasher.HashPassword(registerDto.Password),
-                MemberSince = DateTime.UtcNow
-            };
-
-            await _userRepository.AddAsync(user);
-            return StatusCode(201);
-        }
-
-        [HttpPost("login")]
-        public async Task<IActionResult> Login(UserLoginDto loginDto)
-        {
-            if (!ModelState.IsValid) return BadRequest(ModelState);
-
-            var user = await _userRepository.GetUserByIdentifierAsync(loginDto.LoginIdentifier);
-
-            if (user == null || !_passwordHasher.VerifyPassword(user.HashedPassword, loginDto.Password))
-            {
-                return Unauthorized("Invalid credentials.");
-            }
-
-            var token = _jwtTokenGenerator.GenerateToken(user);
-            return Ok(new { Token = token });
-        }
+    /// <summary>Changes the password. All previously issued tokens stop working; a new token is returned.</summary>
+    [HttpPost("password")]
+    [EnableRateLimiting(RateLimits.Auth)]
+    public async Task<TokenResponse> ChangePassword(ChangePasswordRequest request, CancellationToken ct)
+    {
+        var user = await accounts.ChangePasswordAsync(User.UserId(), request, ct);
+        var (token, expires) = tokens.Issue(user);
+        return new TokenResponse(token, expires, UserSummaryResponse.From(user));
     }
 }

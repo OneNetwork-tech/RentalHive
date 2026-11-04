@@ -1,0 +1,48 @@
+@inherits LayoutComponentBase
+
+<header class="site-header">
+    <div class="container header-inner">
+        <a class="brand" href="/">Rental<span>Hive</span></a>
+        <nav class="main-nav" aria-label="Main">
+            <a href="/search">Browse</a>
+            <AuthorizeView>
+                <Authorized>
+                    <a href="/my/listings">My listings</a>
+                    <a href="/my/bookings">My bookings</a>
+                    <a href="/my/requests">Requests</a>
+                </Authorized>
+            </AuthorizeView>
+        </nav>
+        <div class="header-actions">
+            <AuthorizeView>
+                <Authorized>
+                    <a class="btn btn-primary btn-sm" href="/my/listings/new">Rent out</a>
+                    <a class="user-link" href="/account">@context.User.Identity?.Name</a>
+                    <form method="post" action="/logout" class="inline-form">
+                        <AntiforgeryToken />
+                        <button type="submit" class="link-btn">Log out</button>
+                    </form>
+                </Authorized>
+                <NotAuthorized>
+                    <a href="/login">Log in</a>
+                    <a class="btn btn-primary btn-sm" href="/register">Sign up</a>
+                </NotAuthorized>
+            </AuthorizeView>
+        </div>
+    </div>
+</header>
+
+<main id="main">
+    @Body
+</main>
+
+<footer class="site-footer">
+    <div class="container footer-inner">
+        <span>© @DateTime.UtcNow.Year RentalHive · Rent cars, vans, trailers, boats and machines from people near you.</span>
+        <span class="muted">Prices in SEK incl. VAT where applicable.</span>
+    </div>
+</footer>
+
+<div id="blazor-error-ui" role="alert">
+    Something went wrong. <a href="." class="reload">Reload</a>
+</div>

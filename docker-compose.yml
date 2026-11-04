@@ -1,0 +1,66 @@
+# Usage:
+#   cp .env.example .env    # fill in the secrets
+#   docker compose up -d --build
+# Web app: http://localhost:8080   API: http://localhost:8081
+
+services:
+  web:
+    build:
+      context: .
+      args: { PROJECT: RentalHive.Web }
+    image: rentalhive-web:local
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      ConnectionStrings__RentalHive: "Host=db;Database=${POSTGRES_DB:-rentalhive};Username=${POSTGRES_USER:-rentalhive};Password=${POSTGRES_PASSWORD}"
+      Database__MigrateOnStartup: "true"
+    ports: ["${WEB_PORT:-8080}:8080"]
+    volumes:
+      - data:/data          # photos + data-protection keys (shared with the API)
+    depends_on:
+      db: { condition: service_healthy }
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+
+  api:
+    build:
+      context: .
+      args: { PROJECT: RentalHive.Api }
+    image: rentalhive-api:local
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      ConnectionStrings__RentalHive: "Host=db;Database=${POSTGRES_DB:-rentalhive};Username=${POSTGRES_USER:-rentalhive};Password=${POSTGRES_PASSWORD}"
+      Database__MigrateOnStartup: "false"   # the web container applies migrations
+    ports: ["${API_PORT:-8081}:8080"]
+    volumes:
+      - data:/data
+    depends_on:
+      db: { condition: service_healthy }
+      web: { condition: service_started }
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-rentalhive}
+      POSTGRES_USER: ${POSTGRES_USER:-rentalhive}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    # No published port: only the app containers can reach the database.
+
+volumes:
+  pgdata:
+  data:

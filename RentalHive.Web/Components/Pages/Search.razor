@@ -1,0 +1,103 @@
+@page "/search"
+@inject IListingService Listings
+@inject IClock Clock
+
+<PageTitle>Browse rentals – RentalHive</PageTitle>
+
+<div class="container section">
+    <h1>Browse rentals</h1>
+    <form class="filters" method="get" action="/search">
+        <select name="category" aria-label="Category">
+            <option value="">All categories</option>
+            @foreach (var c in ListingFactory.Categories)
+            {
+                <option value="@c.Category" selected="@(Category == c.Category.ToString())">@c.Label</option>
+            }
+        </select>
+        <input name="city" placeholder="City" value="@City" aria-label="City" />
+        <input name="q" placeholder="Keyword" value="@Q" aria-label="Keyword" />
+        <input type="date" name="from" value="@From" aria-label="From" />
+        <input type="date" name="to" value="@To" aria-label="To" />
+        <input type="number" name="maxPrice" min="1" placeholder="Max kr/day" value="@MaxPrice" aria-label="Max price per day" />
+        <select name="sort" aria-label="Sort">
+            <option value="Newest" selected="@(Sort is null or "Newest")">Newest</option>
+            <option value="PriceLow" selected="@(Sort == "PriceLow")">Price: low to high</option>
+            <option value="PriceHigh" selected="@(Sort == "PriceHigh")">Price: high to low</option>
+            <option value="Rating" selected="@(Sort == "Rating")">Best rated</option>
+        </select>
+        <button class="btn btn-primary" type="submit">Filter</button>
+    </form>
+
+    @if (error is not null)
+    {
+        <div class="alert alert-error">@error</div>
+    }
+    else if (result is not null)
+    {
+        <p class="muted">@result.Total @(result.Total == 1 ? "listing" : "listings")@(dateFiltered ? " available for your dates" : "")</p>
+        @if (result.Items.Count == 0)
+        {
+            <div class="empty">Nothing matches your search. Try another city or fewer filters.</div>
+        }
+        else
+        {
+            <div class="listing-grid">
+                @foreach (var item in result.Items)
+                {
+                    <ListingCard Item="item" />
+                }
+            </div>
+            @if (result.TotalPages > 1)
+            {
+                <nav class="pager" aria-label="Pages">
+                    @for (var p = 1; p <= result.TotalPages; p++)
+                    {
+                        <a class="@(p == result.Page ? "active" : "")" href="@PageUrl(p)">@p</a>
+                    }
+                </nav>
+            }
+        }
+    }
+</div>
+
+@code {
+    [SupplyParameterFromQuery] public string? Category { get; set; }
+    [SupplyParameterFromQuery] public string? City { get; set; }
+    [SupplyParameterFromQuery] public string? Q { get; set; }
+    [SupplyParameterFromQuery] public string? From { get; set; }
+    [SupplyParameterFromQuery] public string? To { get; set; }
+    [SupplyParameterFromQuery] public string? MaxPrice { get; set; }
+    [SupplyParameterFromQuery] public string? Sort { get; set; }
+    [SupplyParameterFromQuery(Name = "page")] public int? PageNumber { get; set; }
+
+    private PagedResult<ListingSummary>? result;
+    private string? error;
+    private bool dateFiltered;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var search = new ListingSearch { City = City, Query = Q, Page = PageNumber ?? 1 };
+        if (Enum.TryParse<ItemCategory>(Category, out var cat)) search.Category = cat;
+        if (Enum.TryParse<ListingSort>(Sort, out var sort)) search.Sort = sort;
+        if (decimal.TryParse(MaxPrice, System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture, out var max)) search.MaxPrice = max;
+        if (DateOnly.TryParse(From, System.Globalization.CultureInfo.InvariantCulture, out var from) && DateOnly.TryParse(To, System.Globalization.CultureInfo.InvariantCulture, out var to))
+        {
+            if (to <= from) { error = "The end date must be after the start date."; return; }
+            if (from < Clock.Today) { error = "The start date cannot be in the past."; return; }
+            search.From = from;
+            search.To = to;
+            dateFiltered = true;
+        }
+        result = await Listings.SearchAsync(search);
+    }
+
+    private string PageUrl(int page)
+    {
+        var q = new Dictionary<string, string?>
+        {
+            ["category"] = Category, ["city"] = City, ["q"] = Q, ["from"] = From, ["to"] = To, ["maxPrice"] = MaxPrice, ["sort"] = Sort,
+            ["page"] = page.ToString(System.Globalization.CultureInfo.InvariantCulture),
+        };
+        return Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString("/search", q.Where(kv => !string.IsNullOrEmpty(kv.Value)).ToDictionary(kv => kv.Key, kv => kv.Value));
+    }
+}

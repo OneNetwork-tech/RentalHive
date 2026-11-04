@@ -1,0 +1,82 @@
+@page "/"
+@inject IListingService Listings
+
+<PageTitle>RentalHive – rent anything, from people near you</PageTitle>
+
+<section class="hero">
+    <div class="container">
+        <h1>Rent cars, vans, trailers, boats and machines</h1>
+        <p class="lead">Book directly from owners near you – or earn money on things you rarely use.</p>
+        <form class="search-bar" method="get" action="/search">
+            <label>
+                <span>What</span>
+                <select name="category">
+                    <option value="">Anything</option>
+                    @foreach (var c in ListingFactory.Categories)
+                    {
+                        <option value="@c.Category">@c.Label</option>
+                    }
+                </select>
+            </label>
+            <label>
+                <span>Where</span>
+                <input name="city" placeholder="City, e.g. Stockholm" />
+            </label>
+            <label>
+                <span>From</span>
+                <input type="date" name="from" />
+            </label>
+            <label>
+                <span>To</span>
+                <input type="date" name="to" />
+            </label>
+            <button class="btn btn-primary" type="submit">Search</button>
+        </form>
+    </div>
+</section>
+
+<section class="container section">
+    <h2>Browse by category</h2>
+    <div class="category-grid">
+        @foreach (var c in ListingFactory.Categories)
+        {
+            <a class="category-tile" href="/search?category=@c.Category">
+                <img src="img/@(c.Category.ToString().ToLowerInvariant()).svg" alt="" />
+                <span>@c.Label</span>
+            </a>
+        }
+    </div>
+</section>
+
+<section class="container section">
+    <div class="section-head">
+        <h2>Recently listed</h2>
+        <a href="/search">See all →</a>
+    </div>
+    @if (latest is null || latest.Items.Count == 0)
+    {
+        <div class="empty">No listings yet. <a href="/my/listings/new">Be the first to rent something out.</a></div>
+    }
+    else
+    {
+        <div class="listing-grid">
+            @foreach (var item in latest.Items)
+            {
+                <ListingCard Item="item" />
+            }
+        </div>
+    }
+</section>
+
+<section class="container section how">
+    <div><h3>1. Find</h3><p>Search by category, place and dates. Only items free for your dates are shown.</p></div>
+    <div><h3>2. Request</h3><p>Send a booking request. The owner confirms, and you get each other's contact details.</p></div>
+    <div><h3>3. Rent</h3><p>Pick up, use, return – and leave a review to help others.</p></div>
+</section>
+
+@code {
+    private PagedResult<ListingSummary>? latest;
+
+    protected override async Task OnInitializedAsync() =>
+        latest = await Listings.SearchAsync(new ListingSearch { PageSize = 8 });
+}

@@ -1,0 +1,91 @@
+@page "/my/listings"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@inherits AppComponentBase
+
+<PageTitle>My listings – RentalHive</PageTitle>
+
+<div class="container section">
+    <div class="section-head">
+        <h1>My listings</h1>
+        <a class="btn btn-primary" href="/my/listings/new">+ New listing</a>
+    </div>
+    @if (Error is not null)
+    {
+        <div class="alert alert-error" role="alert">@Error</div>
+    }
+    @if (Notice is not null)
+    {
+        <div class="alert alert-ok" role="status">@Notice</div>
+    }
+    @if (items is null)
+    {
+        <p class="muted">Loading…</p>
+    }
+    else if (items.Count == 0)
+    {
+        <div class="empty">You haven't listed anything yet. <a href="/my/listings/new">Rent out your first item.</a></div>
+    }
+    else
+    {
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th></th><th>Listing</th><th>Price / day</th><th>Status</th><th></th></tr></thead>
+                <tbody>
+                    @foreach (var i in items)
+                    {
+                        <tr>
+                            <td class="thumb-cell"><img src="@Ui.Image(i.ImageFileName, i.Category)" alt="" /></td>
+                            <td><a href="/items/@i.Id">@i.Name</a><div class="muted small">@ListingFactory.Label(i.Category) · @i.City</div></td>
+                            <td>@Ui.Sek(i.DailyRate)</td>
+                            <td><span class="badge @(i.IsActive ? "badge-green" : "badge-gray")">@(i.IsActive ? "Active" : "Inactive")</span></td>
+                            <td class="actions">
+                                <a class="btn btn-sm" href="/my/listings/@i.Id/edit">Edit</a>
+                                <button class="btn btn-sm" disabled="@(Busy || !RendererInfo.IsInteractive)" @onclick="() => ToggleAsync(i)">@(i.IsActive ? "Deactivate" : "Activate")</button>
+                                @if (confirmDelete == i.Id)
+                                {
+                                    <button class="btn btn-sm btn-danger" disabled="@(Busy || !RendererInfo.IsInteractive)" @onclick="() => DeleteAsync(i)">Confirm delete</button>
+                                    <button class="btn btn-sm btn-ghost" @onclick="() => confirmDelete = null">Cancel</button>
+                                }
+                                else
+                                {
+                                    <button class="btn btn-sm btn-ghost" @onclick="() => confirmDelete = i.Id">Delete</button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@code {
+    private IReadOnlyList<ListingSummary>? items;
+    private int? confirmDelete;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        if (await CurrentUserIdAsync() is not { } uid) return;
+        items = await Use<IListingService, IReadOnlyList<ListingSummary>>(s => s.GetOwnedAsync(uid));
+    }
+
+    private async Task ToggleAsync(ListingSummary i)
+    {
+        if (await CurrentUserIdAsync() is not { } uid) return;
+        await Guard(() => Use<IListingService>(s => s.SetActiveAsync(uid, i.Id, !i.IsActive)), i.IsActive ? "Listing deactivated." : "Listing activated.");
+        await LoadAsync();
+    }
+
+    private async Task DeleteAsync(ListingSummary i)
+    {
+        if (await CurrentUserIdAsync() is not { } uid) return;
+        confirmDelete = null;
+        var deleted = false;
+        await Guard(async () => deleted = await Use<IListingService, bool>(s => s.DeleteAsync(uid, i.Id)));
+        if (Error is null) Notice = deleted ? "Listing deleted." : "The listing has booking history, so it was deactivated instead of deleted.";
+        await LoadAsync();
+    }
+}

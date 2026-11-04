@@ -1,0 +1,99 @@
+@inherits AppComponentBase
+@inject IClock Clock
+
+<div class="booking-widget">
+    <div class="grid2">
+        <label class="field">
+            <span>Pick-up</span>
+            <input type="date" disabled="@(!RendererInfo.IsInteractive)" value="@start.ToString("yyyy-MM-dd")" min="@Clock.Today.ToString("yyyy-MM-dd")" @onchange="OnStartChanged" />
+        </label>
+        <label class="field">
+            <span>Return</span>
+            <input type="date" disabled="@(!RendererInfo.IsInteractive)" value="@end.ToString("yyyy-MM-dd")" min="@start.AddDays(1).ToString("yyyy-MM-dd")" @onchange="OnEndChanged" />
+        </label>
+    </div>
+    @if (quote is not null)
+    {
+        <dl class="quote">
+            <dt>@Ui.Sek(quote.DailyRate) × @quote.Days @(quote.Days == 1 ? "day" : "days")</dt>
+            <dd>@Ui.Sek(quote.Total)</dd>
+        </dl>
+        @if (!quote.Available)
+        {
+            <div class="alert alert-error">The item is already booked for some of these dates.</div>
+        }
+    }
+    <label class="field">
+        <span>Message to the owner (optional)</span>
+        <textarea rows="2" maxlength="1000" @bind="message" placeholder="When do you want to pick up? What will you use it for?"></textarea>
+    </label>
+    @if (Error is not null)
+    {
+        <div class="alert alert-error" role="alert">@Error</div>
+    }
+    @if (sent is not null)
+    {
+        <div class="alert alert-ok" role="status">Request sent! You'll find it under <a href="/my/bookings">My bookings</a>.</div>
+    }
+    else
+    {
+        <button class="btn btn-primary btn-block" disabled="@(Busy || !RendererInfo.IsInteractive || quote is null || !quote.Available)" @onclick="RequestAsync">
+            @(Busy ? "Sending…" : "Request booking")
+        </button>
+        <p class="muted small center">You won't be charged now. The owner confirms first.</p>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public int ItemId { get; set; }
+    [Parameter] public decimal DailyRate { get; set; }
+
+    private DateOnly start;
+    private DateOnly end;
+    private Quote? quote;
+    private string message = string.Empty;
+    private BookingDto? sent;
+
+    protected override async Task OnInitializedAsync()
+    {
+        start = Clock.Today.AddDays(1);
+        end = start.AddDays(1);
+        await RefreshQuoteAsync();
+    }
+
+    private async Task OnStartChanged(ChangeEventArgs e)
+    {
+        if (DateOnly.TryParse(e.Value?.ToString(), System.Globalization.CultureInfo.InvariantCulture, out var d))
+        {
+            start = d;
+            if (end <= start) end = start.AddDays(1);
+            await RefreshQuoteAsync();
+        }
+    }
+
+    private async Task OnEndChanged(ChangeEventArgs e)
+    {
+        if (DateOnly.TryParse(e.Value?.ToString(), System.Globalization.CultureInfo.InvariantCulture, out var d))
+        {
+            end = d;
+            await RefreshQuoteAsync();
+        }
+    }
+
+    private async Task RefreshQuoteAsync()
+    {
+        quote = null;
+        await Guard(async () => quote = await Use<IBookingService, Quote>(s => s.QuoteAsync(ItemId, start, end)));
+    }
+
+    private async Task RequestAsync()
+    {
+        var userId = await CurrentUserIdAsync();
+        if (userId is null) return;
+        await Guard(async () =>
+            sent = await Use<IBookingService, BookingDto>(s => s.RequestAsync(userId.Value, new BookingRequest
+            {
+                RentalItemId = ItemId, StartDate = start, EndDate = end, Message = message,
+            })));
+    }
+}
