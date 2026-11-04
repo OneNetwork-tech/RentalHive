@@ -84,8 +84,11 @@ var app = builder.Build();
 app.UseForwardedHeaders();
 app.UseExceptionHandler();
 app.UseStatusCodePages();
-if (!app.Environment.IsDevelopment()) app.UseHsts();
-app.UseHttpsRedirection();
+if (app.Configuration.GetValue("Security:HttpsOnly", !app.Environment.IsDevelopment()))
+{
+    app.UseHsts();
+    app.UseHttpsRedirection();
+}
 app.UseSecurityHeaders("default-src 'none'; frame-ancestors 'none'");
 app.UseCors();
 app.UseRateLimiter();

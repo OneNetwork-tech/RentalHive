@@ -368,3 +368,6 @@ data/
 .env
 .env.*
 !.env.example
+
+# Server secrets for deploy/
+deploy/.env

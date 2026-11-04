@@ -21,13 +21,17 @@ var keysPath = builder.Configuration["DataProtection:KeysPath"];
 var dp = builder.Services.AddDataProtection().SetApplicationName("RentalHive.Web");
 if (!string.IsNullOrWhiteSpace(keysPath)) dp.PersistKeysToFileSystem(new DirectoryInfo(keysPath));
 
+// Secure-only cookies, HSTS and HTTPS redirect unless Security:HttpsOnly=false (plain-HTTP LAN testing).
+var httpsOnly = builder.Configuration.GetValue("Security:HttpsOnly", !builder.Environment.IsDevelopment());
+var cookieSecurity = httpsOnly ? CookieSecurePolicy.Always : CookieSecurePolicy.SameAsRequest;
+
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(o =>
     {
         o.Cookie.Name = "rh_auth";
         o.Cookie.HttpOnly = true;
         o.Cookie.SameSite = SameSiteMode.Lax;
-        o.Cookie.SecurePolicy = builder.Environment.IsDevelopment() ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.Always;
+        o.Cookie.SecurePolicy = cookieSecurity;
         o.ExpireTimeSpan = TimeSpan.FromHours(8);
         o.SlidingExpiration = true;
         o.LoginPath = "/login";
@@ -39,7 +43,7 @@ builder.Services.AddAuthorization();
 builder.Services.AddAntiforgery(o =>
 {
     o.Cookie.Name = "rh_af";
-    o.Cookie.SecurePolicy = builder.Environment.IsDevelopment() ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.Always;
+    o.Cookie.SecurePolicy = cookieSecurity;
 });
 
 // Brute-force protection on the credential forms.
@@ -76,10 +80,14 @@ app.UseForwardedHeaders();
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/error", createScopeForErrors: true);
+}
+
+if (httpsOnly)
+{
     app.UseHsts();
+    app.UseHttpsRedirection();
 }
 app.UseStatusCodePagesWithReExecute("/not-found");
-app.UseHttpsRedirection();
 app.UseSecurityHeaders(
     "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; " +
     "connect-src 'self' ws: wss:; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'");

@@ -17,7 +17,9 @@ COPY RentalHive.Application/ RentalHive.Application/
 COPY RentalHive.Infrastructure/ RentalHive.Infrastructure/
 COPY RentalHive.Api/ RentalHive.Api/
 COPY RentalHive.Web/ RentalHive.Web/
-RUN dotnet publish ${PROJECT}/${PROJECT}.csproj -c Release -o /app --no-restore /p:UseAppHost=false
+# Restore again now that the .razor files are present: the SDK only adds the Blazor
+# framework assets (blazor.web.js) when it sees Razor components.
+RUN dotnet publish ${PROJECT}/${PROJECT}.csproj -c Release -o /app /p:UseAppHost=false
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 ARG PROJECT
