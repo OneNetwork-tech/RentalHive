@@ -6,6 +6,8 @@ name: rentalhive
 services:
   web:
     image: ghcr.io/onenetwork-tech/rentalhive-web:${IMAGE_TAG:-latest}
+    # BUILD=1 ./deploy.sh builds this image from the source in this repository instead of pulling it.
+    build: { context: .., args: { PROJECT: RentalHive.Web } }
     restart: unless-stopped
     env_file: .env
     environment:
@@ -23,6 +25,8 @@ services:
 
   api:
     image: ghcr.io/onenetwork-tech/rentalhive-api:${IMAGE_TAG:-latest}
+    # BUILD=1 ./deploy.sh builds this image from the source in this repository instead of pulling it.
+    build: { context: .., args: { PROJECT: RentalHive.Api } }
     restart: unless-stopped
     env_file: .env
     environment:
