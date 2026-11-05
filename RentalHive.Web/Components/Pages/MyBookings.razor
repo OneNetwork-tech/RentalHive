@@ -1,0 +1,97 @@
+@page "/my/bookings"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@inherits AppComponentBase
+@inject IClock Clock
+
+<PageTitle>My bookings – RentalHive</PageTitle>
+
+<div class="container section narrow-wide">
+    <h1>My bookings</h1>
+    <p class="muted">Things you rent from others. Contact details are shared once the owner confirms.</p>
+    @if (Error is not null)
+    {
+        <div class="alert alert-error" role="alert">@Error</div>
+    }
+    @if (Notice is not null)
+    {
+        <div class="alert alert-ok" role="status">@Notice</div>
+    }
+    @if (bookings is null)
+    {
+        <p class="muted">Loading…</p>
+    }
+    else if (bookings.Count == 0)
+    {
+        <div class="empty">No bookings yet. <a href="/search">Find something to rent.</a></div>
+    }
+    else
+    {
+        @foreach (var b in bookings)
+        {
+            <BookingRow Booking="b" CounterpartLabel="Owner">
+                <div class="row">
+                    @if (b.Status is BookingStatus.Pending or BookingStatus.Confirmed && b.StartDate > Clock.Today)
+                    {
+                        <button class="btn btn-sm btn-ghost" disabled="@(Busy || !RendererInfo.IsInteractive)" @onclick="() => CancelAsync(b.Id)">Cancel booking</button>
+                    }
+                    @if (b.CanReview)
+                    {
+                        @if (reviewing == b.Id)
+                        {
+                            <div class="review-form">
+                                <div class="star-input" role="radiogroup" aria-label="Rating">
+                                    @for (var s = 1; s <= 5; s++)
+                                    {
+                                        var value = s;
+                                        <button type="button" class="@(rating >= value ? "on" : "")" aria-label="@value stars" @onclick="() => rating = value">★</button>
+                                    }
+                                </div>
+                                <textarea rows="2" maxlength="2000" @bind="comment" placeholder="How was it?"></textarea>
+                                <button class="btn btn-sm btn-primary" disabled="@(Busy || rating == 0)" @onclick="() => ReviewAsync(b.Id)">Post review</button>
+                            </div>
+                        }
+                        else
+                        {
+                            <button class="btn btn-sm" @onclick="() => { reviewing = b.Id; rating = 0; comment = string.Empty; }">Leave a review</button>
+                        }
+                    }
+                    @if (b.ReviewRating is { } r)
+                    {
+                        <span class="small muted">Your review: <span class="stars">@Ui.Stars(r)</span></span>
+                    }
+                </div>
+            </BookingRow>
+        }
+    }
+</div>
+
+@code {
+    private IReadOnlyList<BookingDto>? bookings;
+    private int? reviewing;
+    private int rating;
+    private string comment = string.Empty;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        if (await CurrentUserIdAsync() is not { } uid) return;
+        bookings = await Use<IBookingService, IReadOnlyList<BookingDto>>(s => s.GetAsRenterAsync(uid));
+    }
+
+    private async Task CancelAsync(int id)
+    {
+        if (await CurrentUserIdAsync() is not { } uid) return;
+        await Guard(() => Use<IBookingService>(s => s.CancelAsync(uid, id)), "Booking cancelled.");
+        await LoadAsync();
+    }
+
+    private async Task ReviewAsync(int id)
+    {
+        if (await CurrentUserIdAsync() is not { } uid) return;
+        await Guard(() => Use<IBookingService>(s => s.ReviewAsync(uid, id, new ReviewRequest { Rating = rating, Comment = comment })), "Thanks for your review!");
+        reviewing = null;
+        await LoadAsync();
+    }
+}

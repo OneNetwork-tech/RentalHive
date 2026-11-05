@@ -1,0 +1,160 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: rentalhive
+          POSTGRES_PASSWORD: rentalhive
+          POSTGRES_DB: rentalhive_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U rentalhive"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - run: dotnet restore RentalHive.sln
+      - run: dotnet build RentalHive.sln -c Release --no-restore
+      - run: dotnet test RentalHive.sln -c Release --no-build
+        env:
+          TEST_DATABASE_URL: Host=localhost;Port=5432;Database=rentalhive_test;Username=rentalhive;Password=rentalhive
+      - name: Fail on high/critical vulnerable packages
+        run: |
+          dotnet list RentalHive.sln package --vulnerable --include-transitive | tee vuln.txt
+          if grep -Eq "(High|Critical)" vuln.txt; then exit 1; fi
+
+  docker:
+    runs-on: ubuntu-latest
+    needs: build-test
+    strategy:
+      matrix:
+        project: [RentalHive.Web, RentalHive.Api]
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build --build-arg PROJECT=${{ matrix.project }} -t rentalhive-ci .
+      - name: Smoke test image
+        run: |
+          docker network create rh
+          docker run -d --name db --network rh -e POSTGRES_USER=rh -e POSTGRES_PASSWORD=rh -e POSTGRES_DB=rh postgres:16-alpine
+          for i in $(seq 1 30); do docker exec db pg_isready -U rh && break; sleep 1; done
+          docker run -d --name app --network rh -p 8080:8080 --read-only --tmpfs /tmp \
+            -e "ConnectionStrings__RentalHive=Host=db;Database=rh;Username=rh;Password=rh" \
+            -e Security__PersonalNumberKey=$(openssl rand -base64 32) -e Jwt__Key=$(openssl rand -base64 48) \
+            -e Database__MigrateOnStartup=true -e Security__HttpsOnly=false rentalhive-ci
+          for i in $(seq 1 60); do curl -fsS http://localhost:8080/health && break; sleep 1; done
+          curl -fsS http://localhost:8080/health | grep -q ok
+          # Blazor's framework script must be in the published image (web app only).
+          if [ "${{ matrix.project }}" = RentalHive.Web ]; then curl -fsS -o /dev/null http://localhost:8080/_framework/blazor.web.js; fi
+          docker logs app
+
+  # The README's "quick test on your own computer", run on a clean machine:
+  # setup-local.sh + BUILD=1 deploy.sh, then the pages must load on localhost.
+  quickstart:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: setup-local.sh and BUILD=1 deploy.sh
+        working-directory: deploy
+        run: |
+          ./setup-local.sh
+          BUILD=1 ./deploy.sh
+      - name: Pages load on localhost
+        run: |
+          curl -fsS http://localhost:8081/ | grep -q RentalHive
+          curl -fsS -o /dev/null http://localhost:8081/_framework/blazor.web.js
+          curl -fsS http://localhost:8082/health
+      - name: Logs on failure
+        if: failure()
+        working-directory: deploy
+        run: docker compose logs --tail=200
+
+  # CD part 1: every push (any branch, v* tags) publishes the image to GitHub Container Registry.
+  #   ghcr.io/<owner>/rentalhive-{web,api}:<branch>   e.g. claude-charming-noether-lhy664
+  #   ghcr.io/<owner>/rentalhive-{web,api}:sha-<7>    one per commit
+  #   ghcr.io/<owner>/rentalhive-{web,api}:latest     default branch only
+  publish:
+    if: github.event_name != 'pull_request'
+    needs: docker
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - { app: web, project: RentalHive.Web }
+          - { app: api, project: RentalHive.Api }
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/rentalhive-${{ matrix.app }}
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=sha,prefix=sha-,format=short
+            type=raw,value=latest,enable={{is_default_branch}}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          build-args: PROJECT=${{ matrix.project }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=rentalhive-${{ matrix.app }}
+          cache-to: type=gha,mode=max,scope=rentalhive-${{ matrix.app }}
+
+  # CD part 2 (optional): deploy to your own server through a self-hosted runner with the
+  # label "local-server". Turn it on by setting the repository variable LOCAL_DEPLOY_BRANCH
+  # to the branch that should auto-deploy. The server keeps its secrets in
+  # $LOCAL_DEPLOY_DIR/.env (default ~/apps/rentalhive), created once from deploy/.env.example.
+  deploy-local:
+    if: github.event_name == 'push' && vars.LOCAL_DEPLOY_BRANCH == github.ref_name
+    needs: publish
+    runs-on: [self-hosted, local-server]
+    concurrency: deploy-local-rentalhive
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Deploy
+        env:
+          LOCAL_DEPLOY_DIR: ${{ vars.LOCAL_DEPLOY_DIR }}
+        run: |
+          DIR="${LOCAL_DEPLOY_DIR:-$HOME/apps/rentalhive}"
+          mkdir -p "$DIR"
+          cp deploy/docker-compose.yml deploy/*.sh deploy/.env.example deploy/Caddyfile.example "$DIR/"
+          if [ ! -f "$DIR/.env" ]; then
+            echo "::error::Create $DIR/.env on the server (copy .env.example and fill in the secrets)"
+            exit 1
+          fi
+          "$DIR/deploy.sh" "sha-${GITHUB_SHA::7}"

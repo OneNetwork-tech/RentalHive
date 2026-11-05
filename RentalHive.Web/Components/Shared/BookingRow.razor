@@ -1,0 +1,27 @@
+<article class="booking-row">
+    <img src="@Ui.Image(Booking.ImageFileName, Booking.Category)" alt="" />
+    <div class="booking-main">
+        <div class="row-between">
+            <a href="/items/@Booking.RentalItemId"><b>@Booking.ItemName</b></a>
+            <span class="badge @Ui.StatusClass(Booking.Status)">@Ui.StatusLabel(Booking.Status)</span>
+        </div>
+        <div class="muted small">@Ui.Date(Booking.StartDate) → @Ui.Date(Booking.EndDate) · @Booking.Days @(Booking.Days == 1 ? "day" : "days") · <b>@Ui.Sek(Booking.TotalCost)</b></div>
+        <div class="small">@CounterpartLabel: <b>@Booking.CounterpartName</b>
+            @if (Booking.CounterpartEmail is not null)
+            {
+                <span> · <a href="mailto:@Booking.CounterpartEmail">@Booking.CounterpartEmail</a> · <a href="tel:@Booking.CounterpartPhone">@Booking.CounterpartPhone</a></span>
+            }
+        </div>
+        @if (!string.IsNullOrWhiteSpace(Booking.Message))
+        {
+            <p class="quote-msg">“@Booking.Message”</p>
+        }
+        @ChildContent
+    </div>
+</article>
+
+@code {
+    [Parameter, EditorRequired] public BookingDto Booking { get; set; } = default!;
+    [Parameter] public string CounterpartLabel { get; set; } = "Owner";
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

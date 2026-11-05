@@ -1,0 +1,10 @@
+**/bin
+**/obj
+**/data
+.git
+.github
+**/*.md
+RentalHive.Tests
+.env
+.env.*
+deploy

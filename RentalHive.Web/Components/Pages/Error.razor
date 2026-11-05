@@ -1,0 +1,21 @@
+@page "/error"
+@using System.Diagnostics
+
+<PageTitle>Error – RentalHive</PageTitle>
+
+<div class="container section narrow center">
+    <h1>Something went wrong</h1>
+    <p class="muted">An unexpected error occurred. Please try again in a moment.</p>
+    @if (RequestId is not null)
+    {
+        <p class="small muted">Reference: <code>@RequestId</code></p>
+    }
+</div>
+
+@code {
+    [CascadingParameter] private HttpContext? HttpContext { get; set; }
+
+    private string? RequestId { get; set; }
+
+    protected override void OnInitialized() => RequestId = Activity.Current?.Id ?? HttpContext?.TraceIdentifier;
+}

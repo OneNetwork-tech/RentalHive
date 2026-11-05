@@ -361,3 +361,14 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+# RentalHive runtime data (uploaded photos, data-protection keys) and local secrets
+data/
+**/data/images/
+**/data/keys/
+.env
+.env.*
+!.env.example
+
+# Server secrets for deploy/
+deploy/.env
+deploy/backups/

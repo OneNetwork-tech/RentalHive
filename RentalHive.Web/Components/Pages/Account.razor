@@ -1,0 +1,109 @@
+@page "/account"
+@attribute [Authorize]
+@using RentalHive.Domain.Common
+@inject IAccountService Accounts
+
+<PageTitle>Account – RentalHive</PageTitle>
+
+<div class="container section narrow">
+    <h1>Your account</h1>
+    @if (profile is not null)
+    {
+        <div class="card form-card">
+            <dl class="specs">
+                <dt>Email</dt><dd>@profile.Email</dd>
+                <dt>Personnummer</dt><dd>@profile.PersonalNumberMasked</dd>
+                <dt>Member since</dt><dd>@profile.MemberSince.ToString("d MMM yyyy", System.Globalization.CultureInfo.GetCultureInfo("en-GB"))</dd>
+            </dl>
+        </div>
+
+        <EditForm Model="Profile" FormName="profile" OnValidSubmit="SaveProfileAsync" method="post" class="card form-card">
+            <DataAnnotationsValidator />
+            <h2>Profile</h2>
+            <div class="grid2">
+                <label class="field"><span>First name</span><InputText @bind-Value="Profile.FirstName" /><ValidationMessage For="() => Profile.FirstName" /></label>
+                <label class="field"><span>Last name</span><InputText @bind-Value="Profile.LastName" /><ValidationMessage For="() => Profile.LastName" /></label>
+            </div>
+            <label class="field"><span>Mobile phone</span><InputText type="tel" @bind-Value="Profile.PhoneNumber" /><ValidationMessage For="() => Profile.PhoneNumber" /></label>
+            <div class="grid2">
+                <label class="field"><span>Street address</span><InputText @bind-Value="Profile.Address" /></label>
+                <label class="field"><span>City</span><InputText @bind-Value="Profile.City" /><ValidationMessage For="() => Profile.City" /></label>
+            </div>
+            @if (profileMessage is not null)
+            {
+                <div class="alert @(profileOk ? "alert-ok" : "alert-error")">@profileMessage</div>
+            }
+            <button type="submit" class="btn btn-primary">Save profile</button>
+        </EditForm>
+
+        <EditForm Model="Password" FormName="password" OnValidSubmit="ChangePasswordAsync" method="post" class="card form-card">
+            <DataAnnotationsValidator />
+            <h2>Change password</h2>
+            <p class="muted small">Changing your password signs you out on all other devices.</p>
+            <label class="field"><span>Current password</span><InputText type="password" @bind-Value="Password.CurrentPassword" autocomplete="current-password" /></label>
+            <label class="field"><span>New password</span><InputText type="password" @bind-Value="Password.NewPassword" autocomplete="new-password" /><ValidationMessage For="() => Password.NewPassword" /></label>
+            @if (passwordMessage is not null)
+            {
+                <div class="alert @(passwordOk ? "alert-ok" : "alert-error")">@passwordMessage</div>
+            }
+            <button type="submit" class="btn btn-primary">Change password</button>
+        </EditForm>
+    }
+</div>
+
+@code {
+    [CascadingParameter] private HttpContext HttpContext { get; set; } = default!;
+    [SupplyParameterFromForm(FormName = "profile")] private UpdateProfileRequest Profile { get; set; } = default!;
+    [SupplyParameterFromForm(FormName = "password")] private ChangePasswordRequest Password { get; set; } = default!;
+
+    private ProfileDto? profile;
+    private string? profileMessage;
+    private bool profileOk;
+    private string? passwordMessage;
+    private bool passwordOk;
+
+    private int UserId => HttpContext.User.UserId() ?? throw new UnauthorizedAccessException();
+
+    protected override async Task OnInitializedAsync()
+    {
+        profile = await Accounts.GetProfileAsync(UserId);
+        Profile ??= new UpdateProfileRequest
+        {
+            FirstName = profile.FirstName, LastName = profile.LastName, PhoneNumber = profile.PhoneNumber, Address = profile.Address, City = profile.City,
+        };
+        Password ??= new ChangePasswordRequest();
+    }
+
+    private async Task SaveProfileAsync()
+    {
+        try
+        {
+            profile = await Accounts.UpdateProfileAsync(UserId, Profile);
+            profileOk = true;
+            profileMessage = "Profile saved.";
+        }
+        catch (DomainException ex)
+        {
+            profileOk = false;
+            profileMessage = ex.Message;
+        }
+    }
+
+    private async Task ChangePasswordAsync()
+    {
+        try
+        {
+            var user = await Accounts.ChangePasswordAsync(UserId, Password);
+            // Re-issue this browser's cookie with the new security stamp; other sessions are now invalid.
+            await WebClaims.SignInAsync(HttpContext, user);
+            passwordOk = true;
+            passwordMessage = "Password changed.";
+        }
+        catch (DomainException ex)
+        {
+            passwordOk = false;
+            passwordMessage = ex.Message;
+        }
+        Password = new ChangePasswordRequest();
+    }
+}

@@ -1,0 +1,45 @@
+@inherits AppComponentBase
+
+<div class="report-listing">
+    @if (sent)
+    {
+        <p class="muted small" role="status">Thanks. A moderator will look at this listing.</p>
+    }
+    else if (!open)
+    {
+        <button class="link-btn small" disabled="@(!RendererInfo.IsInteractive)" @onclick="() => open = true">Report this listing</button>
+    }
+    else
+    {
+        <label class="field">
+            <span>What is wrong with this listing?</span>
+            <textarea rows="3" maxlength="1000" @bind="reason" placeholder="For example: fake photos, misleading price, dangerous item"></textarea>
+        </label>
+        @if (Error is not null)
+        {
+            <div class="alert alert-error" role="alert">@Error</div>
+        }
+        <div class="row">
+            <button class="btn btn-sm btn-danger" disabled="@(Busy || !RendererInfo.IsInteractive)" @onclick="SendAsync">Send report</button>
+            <button class="btn btn-sm btn-ghost" @onclick="() => open = false">Cancel</button>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public int ItemId { get; set; }
+
+    private bool open;
+    private bool sent;
+    private string reason = "";
+
+    private async Task SendAsync()
+    {
+        if (await CurrentUserIdAsync() is not { } uid) return;
+        await Guard(async () =>
+        {
+            await Use<IModerationService>(s => s.ReportListingAsync(uid, ItemId, new ReportListingRequest(reason)));
+            sent = true;
+        });
+    }
+}

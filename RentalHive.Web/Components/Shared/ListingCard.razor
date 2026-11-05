@@ -1,0 +1,28 @@
+<a class="card listing-card" href="/items/@Item.Id">
+    <div class="card-img">
+        <img src="@Ui.Image(Item.ImageFileName, Item.Category)" alt="" loading="lazy" />
+        <span class="chip">@ListingFactory.Label(Item.Category)</span>
+        @if (!Item.IsActive)
+        {
+            <span class="chip chip-muted">Inactive</span>
+        }
+    </div>
+    <div class="card-body">
+        <h3>@Item.Name</h3>
+        <p class="muted small">@Item.Subtitle</p>
+        <div class="card-foot">
+            <span class="price">@Ui.Sek(Item.DailyRate) <small>/ day</small></span>
+            <span class="muted small">
+                @Item.City
+                @if (Item.AverageRating is { } r)
+                {
+                    <span class="stars" title="@r of 5"> · ★ @r.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) (@Item.ReviewCount)</span>
+                }
+            </span>
+        </div>
+    </div>
+</a>
+
+@code {
+    [Parameter, EditorRequired] public ListingSummary Item { get; set; } = default!;
+}

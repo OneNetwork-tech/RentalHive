@@ -1,0 +1,63 @@
+@page "/login"
+@inject IAccountService Accounts
+@inject NavigationManager Nav
+
+<PageTitle>Log in – RentalHive</PageTitle>
+
+<div class="container section narrow">
+    <div class="card form-card">
+        <h1>Log in</h1>
+        <p class="muted">Use your email, personnummer or phone number.</p>
+        <EditForm Model="Input" FormName="login" OnValidSubmit="SubmitAsync" method="post">
+            <DataAnnotationsValidator />
+            <label class="field">
+                <span>Email, personnummer or phone</span>
+                <InputText @bind-Value="Input.LoginIdentifier" autocomplete="username" autofocus />
+                <ValidationMessage For="() => Input.LoginIdentifier" />
+            </label>
+            <label class="field">
+                <span>Password</span>
+                <InputText type="password" @bind-Value="Input.Password" autocomplete="current-password" />
+                <ValidationMessage For="() => Input.Password" />
+            </label>
+            @if (error is not null)
+            {
+                <div class="alert alert-error" role="alert">@error</div>
+            }
+            <button type="submit" class="btn btn-primary btn-block">Log in</button>
+        </EditForm>
+        <p class="small center">New to RentalHive? <a href="/register">Create an account</a></p>
+    </div>
+</div>
+
+@code {
+    [CascadingParameter] private HttpContext HttpContext { get; set; } = default!;
+    [SupplyParameterFromForm] private LoginRequest Input { get; set; } = default!;
+
+    protected override void OnInitialized() => Input ??= new();
+    [SupplyParameterFromQuery] private string? ReturnUrl { get; set; }
+
+    private string? error;
+
+    private async Task SubmitAsync()
+    {
+        var result = await Accounts.LoginAsync(Input);
+        switch (result.Outcome)
+        {
+            case LoginOutcome.Success:
+                await WebClaims.SignInAsync(HttpContext, result.User!);
+                Nav.NavigateTo(RentalHive.Infrastructure.Web.UrlSafety.LocalOrRoot(ReturnUrl), forceLoad: true);
+                break;
+            case LoginOutcome.LockedOut:
+                error = "Too many failed attempts. Try again in a few minutes.";
+                break;
+            case LoginOutcome.Suspended:
+                error = "This account has been suspended. Contact support if you think this is a mistake.";
+                break;
+            default:
+                error = "Wrong login details.";
+                break;
+        }
+        Input.Password = string.Empty; // never echo the password back into the page
+    }
+}

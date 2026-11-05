@@ -1,0 +1,97 @@
+@page "/my/requests"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@inherits AppComponentBase
+@inject IClock Clock
+
+<PageTitle>Requests – RentalHive</PageTitle>
+
+<div class="container section narrow-wide">
+    <h1>Booking requests</h1>
+    <p class="muted">Bookings of your items. Confirming a request automatically declines other requests for overlapping dates.</p>
+    <div class="tabs">
+        <button class="@(tab == "open" ? "active" : "")" @onclick='() => tab = "open"'>Open (@Open.Count())</button>
+        <button class="@(tab == "upcoming" ? "active" : "")" @onclick='() => tab = "upcoming"'>Confirmed (@Upcoming.Count())</button>
+        <button class="@(tab == "history" ? "active" : "")" @onclick='() => tab = "history"'>History</button>
+    </div>
+    @if (Error is not null)
+    {
+        <div class="alert alert-error" role="alert">@Error</div>
+    }
+    @if (Notice is not null)
+    {
+        <div class="alert alert-ok" role="status">@Notice</div>
+    }
+    @if (bookings is null)
+    {
+        <p class="muted">Loading…</p>
+    }
+    else
+    {
+        var list = Current;
+        @if (list.Count == 0)
+        {
+            <div class="empty">Nothing here.</div>
+        }
+        @foreach (var b in list)
+        {
+            <BookingRow Booking="b" CounterpartLabel="Renter">
+                <div class="row">
+                    @if (b.Status == BookingStatus.Pending)
+                    {
+                        <button class="btn btn-sm btn-primary" disabled="@(Busy || !RendererInfo.IsInteractive)" @onclick="() => ActAsync(b.Id, Act.Confirm)">Confirm</button>
+                        <button class="btn btn-sm" disabled="@(Busy || !RendererInfo.IsInteractive)" @onclick="() => ActAsync(b.Id, Act.Decline)">Decline</button>
+                    }
+                    @if (b.Status == BookingStatus.Confirmed && b.EndDate <= Clock.Today)
+                    {
+                        <button class="btn btn-sm btn-primary" disabled="@(Busy || !RendererInfo.IsInteractive)" @onclick="() => ActAsync(b.Id, Act.Complete)">Mark as returned</button>
+                    }
+                    @if (b.Status == BookingStatus.Confirmed && b.StartDate > Clock.Today)
+                    {
+                        <button class="btn btn-sm btn-ghost" disabled="@(Busy || !RendererInfo.IsInteractive)" @onclick="() => ActAsync(b.Id, Act.Cancel)">Cancel</button>
+                    }
+                </div>
+            </BookingRow>
+        }
+    }
+</div>
+
+@code {
+    private enum Act { Confirm, Decline, Complete, Cancel }
+
+    private IReadOnlyList<BookingDto>? bookings;
+    private string tab = "open";
+
+    private IEnumerable<BookingDto> Open => (bookings ?? []).Where(b => b.Status == BookingStatus.Pending);
+    private IEnumerable<BookingDto> Upcoming => (bookings ?? []).Where(b => b.Status == BookingStatus.Confirmed);
+    private List<BookingDto> Current => (tab switch { "open" => Open, "upcoming" => Upcoming, _ => History }).ToList();
+
+    private IEnumerable<BookingDto> History => (bookings ?? []).Where(b => b.Status is BookingStatus.Declined or BookingStatus.Cancelled or BookingStatus.Completed);
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        if (await CurrentUserIdAsync() is not { } uid) return;
+        bookings = await Use<IBookingService, IReadOnlyList<BookingDto>>(s => s.GetAsOwnerAsync(uid));
+    }
+
+    private async Task ActAsync(int id, Act act)
+    {
+        if (await CurrentUserIdAsync() is not { } uid) return;
+        await Guard(() => Use<IBookingService>(s => act switch
+        {
+            Act.Confirm => s.ConfirmAsync(uid, id),
+            Act.Decline => s.DeclineAsync(uid, id),
+            Act.Complete => s.CompleteAsync(uid, id),
+            _ => s.CancelAsync(uid, id),
+        }), act switch
+        {
+            Act.Confirm => "Booking confirmed. Contact details are now shared with the renter.",
+            Act.Decline => "Request declined.",
+            Act.Complete => "Marked as returned. The renter can now leave a review.",
+            _ => "Booking cancelled.",
+        });
+        await LoadAsync();
+    }
+}

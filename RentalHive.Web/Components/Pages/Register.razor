@@ -1,0 +1,90 @@
+@page "/register"
+@using RentalHive.Domain.Common
+@inject IAccountService Accounts
+@inject NavigationManager Nav
+
+<PageTitle>Create account – RentalHive</PageTitle>
+
+<div class="container section narrow">
+    <div class="card form-card">
+        <h1>Create your account</h1>
+        <p class="muted">You need to be 18 or older. Your personnummer is stored encrypted and is never shown to other members.</p>
+        <EditForm Model="Input" FormName="register" OnValidSubmit="SubmitAsync" method="post">
+            <DataAnnotationsValidator />
+            <label class="field">
+                <span>Personnummer</span>
+                <InputText @bind-Value="Input.PersonalNumber" placeholder="YYYYMMDD-XXXX" autocomplete="off" />
+                <ValidationMessage For="() => Input.PersonalNumber" />
+            </label>
+            <div class="grid2">
+                <label class="field">
+                    <span>First name</span>
+                    <InputText @bind-Value="Input.FirstName" autocomplete="given-name" />
+                    <ValidationMessage For="() => Input.FirstName" />
+                </label>
+                <label class="field">
+                    <span>Last name</span>
+                    <InputText @bind-Value="Input.LastName" autocomplete="family-name" />
+                    <ValidationMessage For="() => Input.LastName" />
+                </label>
+            </div>
+            <label class="field">
+                <span>Email</span>
+                <InputText type="email" @bind-Value="Input.Email" autocomplete="email" />
+                <ValidationMessage For="() => Input.Email" />
+            </label>
+            <label class="field">
+                <span>Mobile phone</span>
+                <InputText type="tel" @bind-Value="Input.PhoneNumber" placeholder="070-123 45 67" autocomplete="tel" />
+                <ValidationMessage For="() => Input.PhoneNumber" />
+            </label>
+            <div class="grid2">
+                <label class="field">
+                    <span>Street address</span>
+                    <InputText @bind-Value="Input.Address" autocomplete="street-address" />
+                </label>
+                <label class="field">
+                    <span>City</span>
+                    <InputText @bind-Value="Input.City" autocomplete="address-level2" />
+                    <ValidationMessage For="() => Input.City" />
+                </label>
+            </div>
+            <label class="field">
+                <span>Password</span>
+                <InputText type="password" @bind-Value="Input.Password" autocomplete="new-password" />
+                <small class="muted">At least 10 characters.</small>
+                <ValidationMessage For="() => Input.Password" />
+            </label>
+            @if (error is not null)
+            {
+                <div class="alert alert-error" role="alert">@error</div>
+            }
+            <button type="submit" class="btn btn-primary btn-block">Create account</button>
+        </EditForm>
+        <p class="small center">Already a member? <a href="/login">Log in</a></p>
+    </div>
+</div>
+
+@code {
+    [CascadingParameter] private HttpContext HttpContext { get; set; } = default!;
+    [SupplyParameterFromForm] private RegisterRequest Input { get; set; } = default!;
+
+    protected override void OnInitialized() => Input ??= new();
+
+    private string? error;
+
+    private async Task SubmitAsync()
+    {
+        try
+        {
+            var user = await Accounts.RegisterAsync(Input);
+            await WebClaims.SignInAsync(HttpContext, user);
+            Nav.NavigateTo("/", forceLoad: true);
+        }
+        catch (DomainException ex)
+        {
+            error = ex.Message;
+            Input.Password = string.Empty; // never echo the password back into the page
+        }
+    }
+}

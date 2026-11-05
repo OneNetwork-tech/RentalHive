@@ -1,0 +1,243 @@
+@page "/my/listings/new"
+@page "/my/listings/{Id:int}/edit"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@inherits AppComponentBase
+@inject NavigationManager Nav
+
+<PageTitle>@(Id is null ? "New listing" : "Edit listing") – RentalHive</PageTitle>
+
+<div class="container section narrow-wide">
+    <h1>@(Id is null ? "Rent out something" : "Edit listing")</h1>
+    @if (notFound)
+    {
+        <div class="alert alert-error">Listing not found.</div>
+    }
+    else if (!RendererInfo.IsInteractive)
+    {
+        <p class="muted">Loading editor…</p>
+    }
+    else
+    {
+        <EditForm Model="input" OnValidSubmit="SaveAsync" class="card form-card">
+            <DataAnnotationsValidator />
+            <label class="field">
+                <span>Category</span>
+                <InputSelect @bind-Value="input.Category" disabled="@(Id is not null)">
+                    @foreach (var c in ListingFactory.Categories)
+                    {
+                        <option value="@c.Category">@c.Label</option>
+                    }
+                </InputSelect>
+            </label>
+            <label class="field">
+                <span>Title</span>
+                <InputText @bind-Value="input.Name" placeholder="e.g. Volvo XC60 with tow bar" />
+                <ValidationMessage For="() => input.Name" />
+            </label>
+            <div class="grid2">
+                <label class="field">
+                    <span>Price per day (kr)</span>
+                    <InputNumber @bind-Value="input.DailyRate" min="1" step="1" />
+                    <ValidationMessage For="() => input.DailyRate" />
+                </label>
+                <label class="field">
+                    <span>City</span>
+                    <InputText @bind-Value="input.City" />
+                    <ValidationMessage For="() => input.City" />
+                </label>
+            </div>
+            <label class="field">
+                <span>Description</span>
+                <InputTextArea @bind-Value="input.Description" rows="4" placeholder="Condition, what's included, pick-up instructions…" />
+            </label>
+
+            <h2>Details</h2>
+            @if (IsVehicle)
+            {
+                <div class="grid3">
+                    <label class="field"><span>Make</span><InputText @bind-Value="input.Make" /></label>
+                    <label class="field"><span>Model</span><InputText @bind-Value="input.Model" /></label>
+                    <label class="field"><span>Model year</span><InputNumber @bind-Value="input.Year" /></label>
+                    <label class="field"><span>Seats</span><InputNumber @bind-Value="input.NumberOfSeats" /></label>
+                    <label class="field">
+                        <span>Transmission</span>
+                        <InputSelect @bind-Value="input.Transmission">
+                            <option value="">—</option>
+                            @foreach (var t in Enum.GetValues<Transmission>()) { <option value="@t">@t</option> }
+                        </InputSelect>
+                    </label>
+                    <label class="field">
+                        <span>Fuel</span>
+                        <InputSelect @bind-Value="input.FuelType">
+                            <option value="">—</option>
+                            @foreach (var f in Enum.GetValues<FuelType>()) { <option value="@f">@f</option> }
+                        </InputSelect>
+                    </label>
+                </div>
+            }
+            @switch (input.Category)
+            {
+                case ItemCategory.Van:
+                    <div class="grid3">
+                        <label class="field"><span>Load volume (m³)</span><InputNumber @bind-Value="input.LoadCapacityInCubicMeters" step="0.1" /></label>
+                        <label class="check"><InputCheckbox @bind-Value="SlidingDoor" /> Sliding door</label>
+                    </div>
+                    break;
+                case ItemCategory.Minibus:
+                    <label class="check"><InputCheckbox @bind-Value="Wheelchair" /> Wheelchair accessible</label>
+                    break;
+                case ItemCategory.LightTruck:
+                    <div class="grid3">
+                        <label class="field"><span>Payload (kg)</span><InputNumber @bind-Value="input.PayloadCapacityInKg" /></label>
+                        <label class="check"><InputCheckbox @bind-Value="TailLift" /> Tail lift</label>
+                    </div>
+                    break;
+                case ItemCategory.Trailer or ItemCategory.CarTransporter or ItemCategory.BoatTrailer:
+                    <div class="grid3">
+                        <label class="field"><span>Load capacity (kg)</span><InputNumber @bind-Value="input.LoadCapacityInKg" /></label>
+                        <label class="field"><span>Deck length (m)</span><InputNumber @bind-Value="input.DeckLengthInMeters" step="0.1" /></label>
+                        <label class="field"><span>Deck width (m)</span><InputNumber @bind-Value="input.DeckWidthInMeters" step="0.1" /></label>
+                        <label class="check"><InputCheckbox @bind-Value="Brakes" /> Brakes</label>
+                        @if (input.Category == ItemCategory.CarTransporter)
+                        {
+                            <label class="field"><span>Axles</span><InputNumber @bind-Value="input.NumberOfAxles" /></label>
+                            <label class="check"><InputCheckbox @bind-Value="Winch" /> Winch</label>
+                        }
+                        @if (input.Category == ItemCategory.BoatTrailer)
+                        {
+                            <label class="field"><span>Max boat length (ft)</span><InputNumber @bind-Value="input.MaxBoatLengthInFeet" /></label>
+                            <label class="check"><InputCheckbox @bind-Value="Submersible" /> Submersible</label>
+                        }
+                    </div>
+                    break;
+                case ItemCategory.Boat:
+                    <div class="grid3">
+                        <label class="field"><span>Boat type</span><InputText @bind-Value="input.BoatType" placeholder="Motorboat, sailboat, RIB…" /></label>
+                        <label class="field"><span>Length (ft)</span><InputNumber @bind-Value="input.LengthInFeet" /></label>
+                        <label class="field"><span>Capacity (persons)</span><InputNumber @bind-Value="input.Capacity" /></label>
+                        <label class="check"><InputCheckbox @bind-Value="License" /> Boating licence required</label>
+                    </div>
+                    break;
+                case ItemCategory.Machine:
+                    <div class="grid3">
+                        <label class="field"><span>Machine type</span><InputText @bind-Value="input.MachineType" placeholder="Excavator, generator…" /></label>
+                        <label class="field"><span>Power (hp)</span><InputNumber @bind-Value="input.Horsepower" /></label>
+                        <label class="field"><span>Weight (kg)</span><InputNumber @bind-Value="input.WeightInKg" /></label>
+                    </div>
+                    break;
+            }
+
+            @if (Error is not null)
+            {
+                <div class="alert alert-error" role="alert">@Error</div>
+            }
+            @if (Notice is not null)
+            {
+                <div class="alert alert-ok" role="status">@Notice</div>
+            }
+            <div class="row">
+                <button type="submit" class="btn btn-primary" disabled="@Busy">@(Id is null ? "Create listing" : "Save changes")</button>
+                <a class="btn" href="/my/listings">Back</a>
+            </div>
+        </EditForm>
+
+        @if (Id is not null)
+        {
+            <div class="card form-card">
+                <h2>Photos</h2>
+                <p class="muted small">JPEG, PNG or WebP, up to 5 MB each, max 8 photos. The first photo is the cover.</p>
+                @if (images.Count > 0)
+                {
+                    <div class="photo-grid">
+                        @foreach (var img in images)
+                        {
+                            <figure>
+                                <img src="media/@img.FileName" alt="" />
+                                <button type="button" class="btn btn-sm btn-ghost" @onclick="() => DeleteImageAsync(img.Id)">Remove</button>
+                            </figure>
+                        }
+                    </div>
+                }
+                <InputFile OnChange="UploadAsync" accept="image/jpeg,image/png,image/webp" multiple />
+                @if (uploading)
+                {
+                    <p class="muted small">Uploading…</p>
+                }
+            </div>
+        }
+    }
+</div>
+
+@code {
+    [Parameter] public int? Id { get; set; }
+
+    private ListingInput input = new() { Category = ItemCategory.Car };
+    private List<ImageDto> images = new();
+    private bool notFound;
+    private bool uploading;
+
+    private bool IsVehicle => input.Category is ItemCategory.Car or ItemCategory.Van or ItemCategory.Minibus or ItemCategory.LightTruck;
+
+    // Checkbox helpers (InputCheckbox needs non-nullable bools).
+    private bool SlidingDoor { get => input.HasSlidingDoor ?? false; set => input.HasSlidingDoor = value; }
+    private bool Wheelchair { get => input.IsWheelchairAccessible ?? false; set => input.IsWheelchairAccessible = value; }
+    private bool TailLift { get => input.HasTailLift ?? false; set => input.HasTailLift = value; }
+    private bool Brakes { get => input.HasBrakes ?? false; set => input.HasBrakes = value; }
+    private bool Winch { get => input.HasWinch ?? false; set => input.HasWinch = value; }
+    private bool Submersible { get => input.IsSubmersible ?? false; set => input.IsSubmersible = value; }
+    private bool License { get => input.RequiresLicense ?? false; set => input.RequiresLicense = value; }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Id is null) return;
+        var uid = await CurrentUserIdAsync();
+        var details = await Use<IListingService, ListingDetails?>(s => s.GetAsync(Id.Value, uid));
+        if (details is null || details.OwnerId != uid)
+        {
+            notFound = true;
+            return;
+        }
+        input = details.Input;
+        images = details.Images.ToList();
+    }
+
+    private async Task SaveAsync()
+    {
+        if (await CurrentUserIdAsync() is not { } uid) return;
+        if (Id is null)
+        {
+            int newId = 0;
+            await Guard(async () => newId = await Use<IListingService, int>(s => s.CreateAsync(uid, input)));
+            if (Error is null) Nav.NavigateTo($"/my/listings/{newId}/edit?created=1");
+        }
+        else
+        {
+            await Guard(() => Use<IListingService>(s => s.UpdateAsync(uid, Id.Value, input)), "Saved.");
+        }
+    }
+
+    private async Task UploadAsync(InputFileChangeEventArgs e)
+    {
+        if (await CurrentUserIdAsync() is not { } uid || Id is null) return;
+        uploading = true;
+        foreach (var file in e.GetMultipleFiles(8))
+        {
+            await Guard(async () =>
+            {
+                await using var stream = file.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024);
+                var img = await Use<IListingService, ImageDto>(s => s.AddImageAsync(uid, Id.Value, stream, file.Size));
+                images.Add(img);
+            });
+            if (Error is not null) break;
+        }
+        uploading = false;
+    }
+
+    private async Task DeleteImageAsync(int imageId)
+    {
+        if (await CurrentUserIdAsync() is not { } uid || Id is null) return;
+        await Guard(() => Use<IListingService>(s => s.DeleteImageAsync(uid, Id.Value, imageId)));
+        if (Error is null) images.RemoveAll(i => i.Id == imageId);
+    }
+}

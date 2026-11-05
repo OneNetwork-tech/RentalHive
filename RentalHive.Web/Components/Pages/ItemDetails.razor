@@ -1,0 +1,134 @@
+@page "/items/{Id:int}"
+@inject IListingService Listings
+@inject NavigationManager Nav
+
+@if (item is null)
+{
+    <PageTitle>Not found – RentalHive</PageTitle>
+    <div class="container section narrow center">
+        <h1>Listing not found</h1>
+        <p class="muted">It may have been removed or is no longer available.</p>
+        <a class="btn btn-primary" href="/search">Browse rentals</a>
+    </div>
+}
+else
+{
+    <PageTitle>@item.Name – RentalHive</PageTitle>
+    <div class="container section">
+        <nav class="breadcrumb"><a href="/search">Browse</a> › <a href="/search?category=@item.Category">@ListingFactory.Label(item.Category)</a> › @item.Name</nav>
+        <div class="details">
+            <div>
+                <div class="gallery">
+                    @if (item.Images.Count == 0)
+                    {
+                        <img class="gallery-main" src="@Ui.Image(null, item.Category)" alt="" />
+                    }
+                    else
+                    {
+                        <img class="gallery-main" src="media/@item.Images[0].FileName" alt="@item.Name" />
+                        @if (item.Images.Count > 1)
+                        {
+                            <div class="gallery-thumbs">
+                                @foreach (var img in item.Images.Skip(1))
+                                {
+                                    <a href="media/@img.FileName" target="_blank" rel="noopener"><img src="media/@img.FileName" alt="" loading="lazy" /></a>
+                                }
+                            </div>
+                        }
+                    }
+                </div>
+
+                <h1>@item.Name</h1>
+                <p class="muted">
+                    @item.City · @ListingFactory.Label(item.Category)
+                    @if (item.AverageRating is { } r)
+                    {
+                        <span> · <span class="stars">@Ui.Stars(r)</span> @r.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) (@item.Reviews.Count)</span>
+                    }
+                </p>
+                @if (!item.IsActive)
+                {
+                    <div class="alert alert-info">This listing is inactive and hidden from search.</div>
+                }
+                @if (!string.IsNullOrWhiteSpace(item.Description))
+                {
+                    <p class="description">@item.Description</p>
+                }
+
+                <h2>Specifications</h2>
+                <dl class="specs">
+                    @foreach (var s in item.Specs)
+                    {
+                        <dt>@s.Label</dt>
+                        <dd>@s.Value</dd>
+                    }
+                </dl>
+
+                <h2>Reviews</h2>
+                @if (item.Reviews.Count == 0)
+                {
+                    <p class="muted">No reviews yet.</p>
+                }
+                else
+                {
+                    <ul class="reviews">
+                        @foreach (var rv in item.Reviews)
+                        {
+                            <li>
+                                <div><span class="stars">@Ui.Stars(rv.Rating)</span> <b>@rv.AuthorName</b> <span class="muted small">@rv.CreatedAt.ToString("d MMM yyyy", System.Globalization.CultureInfo.GetCultureInfo("en-GB"))</span></div>
+                                @if (!string.IsNullOrWhiteSpace(rv.Comment))
+                                {
+                                    <p>@rv.Comment</p>
+                                }
+                            </li>
+                        }
+                    </ul>
+                }
+            </div>
+
+            <aside class="card booking-card">
+                <div class="price-big">@Ui.Sek(item.DailyRate) <small>/ day</small></div>
+                <p class="muted small">Rented out by <b>@item.OwnerName</b> · member since @item.OwnerMemberSince.Year</p>
+                <AuthorizeView>
+                    <Authorized>
+                        @if (context.User.UserId() == item.OwnerId)
+                        {
+                            <a class="btn btn-secondary btn-block" href="/my/listings/@item.Id/edit">Edit your listing</a>
+                        }
+                        else if (item.IsActive)
+                        {
+                            <BookingWidget ItemId="item.Id" DailyRate="item.DailyRate" @rendermode="InteractiveServer" />
+                            <ReportListing ItemId="item.Id" @rendermode="InteractiveServer" />
+                        }
+                    </Authorized>
+                    <NotAuthorized>
+                        <a class="btn btn-primary btn-block" href="/login?returnUrl=@Uri.EscapeDataString($"/items/{item.Id}")">Log in to book</a>
+                    </NotAuthorized>
+                </AuthorizeView>
+                @if (item.UnavailablePeriods.Count > 0)
+                {
+                    <h3 class="small-heading">Already booked</h3>
+                    <ul class="booked-list">
+                        @foreach (var p in item.UnavailablePeriods)
+                        {
+                            <li>@Ui.Date(p.Start) – @Ui.Date(p.End)</li>
+                        }
+                    </ul>
+                }
+            </aside>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+    [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
+
+    private ListingDetails? item;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        int? viewer = AuthState is null ? null : (await AuthState).User.UserId();
+        item = await Listings.GetAsync(Id, viewer);
+    }
+}

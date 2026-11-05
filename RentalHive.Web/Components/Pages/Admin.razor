@@ -1,0 +1,194 @@
+@page "/admin"
+@attribute [Authorize(Roles = WebClaims.AdminRole)]
+@rendermode InteractiveServer
+@inherits AppComponentBase
+
+<PageTitle>Moderation – RentalHive</PageTitle>
+
+<div class="container section">
+    <h1>Moderation</h1>
+    <p class="muted">Reasons you enter are emailed to the member concerned.</p>
+    <div class="tabs">
+        <button class="@(tab == "reports" ? "active" : "")" @onclick='() => tab = "reports"'>Reported listings (@(reports?.Count ?? 0))</button>
+        <button class="@(tab == "members" ? "active" : "")" @onclick='() => tab = "members"'>Members</button>
+    </div>
+    @if (Error is not null)
+    {
+        <div class="alert alert-error" role="alert">@Error</div>
+    }
+    @if (Notice is not null)
+    {
+        <div class="alert alert-ok" role="status">@Notice</div>
+    }
+
+    @if (tab == "reports")
+    {
+        @if (reports is null)
+        {
+            <p class="muted">Loading…</p>
+        }
+        else if (reports.Count == 0)
+        {
+            <div class="empty">No open reports.</div>
+        }
+        else
+        {
+            @foreach (var r in reports)
+            {
+                <div class="card report-card">
+                    <div class="card-body">
+                        <div class="row-between">
+                            <strong><a href="/items/@r.ItemId" target="_blank">@r.ItemName</a></strong>
+                            <span class="muted small">@r.CreatedAt.ToString("yyyy-MM-dd HH:mm") UTC</span>
+                        </div>
+                        <div class="muted small">
+                            Owner: @r.OwnerName (@r.OwnerEmail) · reported by @r.ReporterName
+                            @if (r.OpenReportsForItem > 1)
+                            {
+                                <span class="badge badge-amber">@r.OpenReportsForItem reports</span>
+                            }
+                            @if (!r.ItemActive)
+                            {
+                                <span class="badge badge-gray">Inactive</span>
+                            }
+                        </div>
+                        <p class="description">@r.Reason</p>
+                        <div class="row">
+                            <input class="grow" placeholder="Reason for removal (sent to the owner)" @bind="removalReasons[r.ItemId]" aria-label="Reason for removal" />
+                            <button class="btn btn-sm btn-danger" disabled="@(Busy || !RendererInfo.IsInteractive)" @onclick="() => RemoveAsync(r)">Remove listing</button>
+                            <button class="btn btn-sm" disabled="@(Busy || !RendererInfo.IsInteractive)" @onclick="() => DismissAsync(r)">Dismiss</button>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+    }
+    else
+    {
+        <form class="search-bar" @onsubmit="SearchAsync" @onsubmit:preventDefault>
+            <input placeholder="Email, name, phone or personnummer" @bind="query" aria-label="Find member" />
+            <button class="btn btn-primary" type="submit" disabled="@(Busy || !RendererInfo.IsInteractive)">Find</button>
+        </form>
+        <p class="muted small">With an empty search: suspended members and moderators.</p>
+        @if (members is not null)
+        {
+            @if (members.Count == 0)
+            {
+                <div class="empty">No members found.</div>
+            }
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Member</th><th>Contact</th><th>Since</th><th>Status</th><th></th></tr></thead>
+                    <tbody>
+                        @foreach (var m in members)
+                        {
+                            <tr>
+                                <td>@m.Name<div class="muted small">@m.ActiveListings active listing(s)</div></td>
+                                <td>@m.Email<div class="muted small">@m.PhoneNumber</div></td>
+                                <td>@m.MemberSince.ToString("yyyy-MM-dd")</td>
+                                <td>
+                                    @if (m.IsAdmin)
+                                    {
+                                        <span class="badge badge-blue">Moderator</span>
+                                    }
+                                    @if (m.SuspendedAt is not null)
+                                    {
+                                        <span class="badge badge-amber">Suspended</span>
+                                        <div class="muted small">@m.SuspensionReason</div>
+                                    }
+                                    else if (!m.IsAdmin)
+                                    {
+                                        <span class="badge badge-green">Active</span>
+                                    }
+                                </td>
+                                <td class="actions">
+                                    @if (m.SuspendedAt is not null)
+                                    {
+                                        <button class="btn btn-sm" disabled="@(Busy || !RendererInfo.IsInteractive)" @onclick="() => UnsuspendAsync(m)">Lift suspension</button>
+                                    }
+                                    else if (!m.IsAdmin)
+                                    {
+                                        <input placeholder="Reason (sent to the member)" @bind="suspendReasons[m.Id]" aria-label="Reason for suspension" />
+                                        <button class="btn btn-sm btn-danger" disabled="@(Busy || !RendererInfo.IsInteractive)" @onclick="() => SuspendAsync(m)">Suspend</button>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    }
+</div>
+
+@code {
+    private string tab = "reports";
+    private IReadOnlyList<OpenReportDto>? reports;
+    private IReadOnlyList<MemberDto>? members;
+    private string query = "";
+    private readonly Dictionary<int, string> removalReasons = new();
+    private readonly Dictionary<int, string> suspendReasons = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadReportsAsync();
+        await LoadMembersAsync();
+    }
+
+    private async Task LoadReportsAsync()
+    {
+        if (await CurrentUserIdAsync() is not { } uid) return;
+        reports = await Use<IModerationService, IReadOnlyList<OpenReportDto>>(s => s.GetOpenReportsAsync(uid));
+        foreach (var r in reports) removalReasons.TryAdd(r.ItemId, r.Reason.Length > 200 ? r.Reason[..200] : r.Reason);
+    }
+
+    private async Task LoadMembersAsync()
+    {
+        if (await CurrentUserIdAsync() is not { } uid) return;
+        members = await Use<IModerationService, IReadOnlyList<MemberDto>>(s => s.FindMembersAsync(uid, query));
+        foreach (var m in members) suspendReasons.TryAdd(m.Id, "");
+    }
+
+    private Task SearchAsync() => Guard(LoadMembersAsync);
+
+    private async Task RemoveAsync(OpenReportDto r)
+    {
+        if (await CurrentUserIdAsync() is not { } uid) return;
+        await Guard(async () =>
+        {
+            await Use<IModerationService>(s => s.RemoveListingAsync(uid, r.ItemId, removalReasons.GetValueOrDefault(r.ItemId) ?? ""));
+            await LoadReportsAsync();
+        }, $"\"{r.ItemName}\" was removed and the owner was notified.");
+    }
+
+    private async Task DismissAsync(OpenReportDto r)
+    {
+        if (await CurrentUserIdAsync() is not { } uid) return;
+        await Guard(async () =>
+        {
+            await Use<IModerationService>(s => s.DismissReportAsync(uid, r.Id));
+            await LoadReportsAsync();
+        }, "Report dismissed.");
+    }
+
+    private async Task SuspendAsync(MemberDto m)
+    {
+        if (await CurrentUserIdAsync() is not { } uid) return;
+        await Guard(async () =>
+        {
+            await Use<IModerationService>(s => s.SuspendAsync(uid, m.Id, suspendReasons.GetValueOrDefault(m.Id) ?? ""));
+            await LoadMembersAsync();
+            await LoadReportsAsync();
+        }, $"{m.Name} was suspended and notified.");
+    }
+
+    private async Task UnsuspendAsync(MemberDto m)
+    {
+        if (await CurrentUserIdAsync() is not { } uid) return;
+        await Guard(async () =>
+        {
+            await Use<IModerationService>(s => s.UnsuspendAsync(uid, m.Id));
+            await LoadMembersAsync();
+        }, $"{m.Name} can sign in again.");
+    }
+}
