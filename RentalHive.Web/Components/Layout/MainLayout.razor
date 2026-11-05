@@ -12,6 +12,9 @@
                     <a href="/my/requests">Requests</a>
                 </Authorized>
             </AuthorizeView>
+            <AuthorizeView Roles="@WebClaims.AdminRole">
+                <a href="/admin">Moderation</a>
+            </AuthorizeView>
         </nav>
         <div class="header-actions">
             <AuthorizeView>

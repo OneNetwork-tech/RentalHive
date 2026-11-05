@@ -149,6 +149,59 @@ namespace RentalHive.Infrastructure.Persistence.Migrations
                     b.ToTable("item_images", (string)null);
                 });
 
+            modelBuilder.Entity("RentalHive.Domain.Entities.ListingReport", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("reason");
+
+                    b.Property<int>("RentalItemId")
+                        .HasColumnType("integer")
+                        .HasColumnName("rental_item_id");
+
+                    b.Property<int>("ReporterId")
+                        .HasColumnType("integer")
+                        .HasColumnName("reporter_id");
+
+                    b.Property<string>("Resolution")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("resolution");
+
+                    b.Property<DateTime?>("ResolvedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("resolved_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_listing_reports");
+
+                    b.HasIndex("ReporterId")
+                        .HasDatabaseName("ix_listing_reports_reporter_id");
+
+                    b.HasIndex("ResolvedAt")
+                        .HasDatabaseName("ix_listing_reports_resolved_at");
+
+                    b.HasIndex("RentalItemId", "ReporterId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_listing_reports_rental_item_id_reporter_id")
+                        .HasFilter("resolved_at IS NULL");
+
+                    b.ToTable("listing_reports", (string)null);
+                });
+
             modelBuilder.Entity("RentalHive.Domain.Entities.RentalItem", b =>
                 {
                     b.Property<int>("Id")
@@ -192,6 +245,15 @@ namespace RentalHive.Infrastructure.Persistence.Migrations
                     b.Property<int>("OwnerId")
                         .HasColumnType("integer")
                         .HasColumnName("owner_id");
+
+                    b.Property<string>("RemovalReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("removal_reason");
+
+                    b.Property<DateTime?>("RemovedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("removed_at");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -317,6 +379,10 @@ namespace RentalHive.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(100)")
                         .HasColumnName("first_name");
 
+                    b.Property<bool>("IsAdmin")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_admin");
+
                     b.Property<string>("LastName")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -358,6 +424,15 @@ namespace RentalHive.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("SecurityStamp")
                         .HasColumnType("uuid")
                         .HasColumnName("security_stamp");
+
+                    b.Property<DateTime?>("SuspendedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("suspended_at");
+
+                    b.Property<string>("SuspensionReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("suspension_reason");
 
                     b.HasKey("Id")
                         .HasName("pk_users");
@@ -605,6 +680,27 @@ namespace RentalHive.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_item_images_rental_items_rental_item_id");
 
                     b.Navigation("RentalItem");
+                });
+
+            modelBuilder.Entity("RentalHive.Domain.Entities.ListingReport", b =>
+                {
+                    b.HasOne("RentalHive.Domain.Entities.RentalItem", "RentalItem")
+                        .WithMany()
+                        .HasForeignKey("RentalItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_listing_reports_rental_items_rental_item_id");
+
+                    b.HasOne("RentalHive.Domain.Entities.User", "Reporter")
+                        .WithMany()
+                        .HasForeignKey("ReporterId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_listing_reports_users_reporter_id");
+
+                    b.Navigation("RentalItem");
+
+                    b.Navigation("Reporter");
                 });
 
             modelBuilder.Entity("RentalHive.Domain.Entities.RentalItem", b =>

@@ -13,6 +13,8 @@ Built with .NET 10 (LTS), ASP.NET Core, Blazor and PostgreSQL in a Clean Archite
 | **Search** | Category, city, keyword, max price, sorting, pagination. **Availability:** only items free for the whole requested period are shown |
 | **Bookings** | Quote, then request (with a message to the owner). Owners confirm or decline, and confirming automatically declines overlapping requests. Cancel before the start, then mark as returned. **No double bookings**, enforced by a PostgreSQL exclusion constraint. Contact details are shared only after confirmation |
 | **Reviews** | One review per completed rental (1–5 stars and a comment), with an average rating on each listing |
+| **Email notifications** | The owner is emailed about new requests. The renter is emailed when a request is confirmed (with the owner's contact details), declined or no longer available. The other party is emailed about cancellations, and the renter is invited to review once the item is returned. Emails are queued and sent in the background, so a slow mail server never delays the site |
+| **Moderation** | Members can report a listing. Moderators review reports, remove listings for good (the owner can't reactivate them), and suspend or reinstate members. Suspension blocks sign-in, ends web sessions and API tokens, hides the member's listings and cancels their pending requests. Everyone affected gets an email |
 | **API** | A REST API for mobile and third-party clients, with JWT authentication. It uses the same business logic as the web app |
 
 ## Architecture
@@ -150,7 +152,7 @@ RENTALHIVE_DB="Host=localhost;Database=rentalhive;Username=…;Password=…" \
 TEST_DATABASE_URL="Host=localhost;Database=rentalhive_test;Username=rentalhive;Password=…" dotnet test
 ```
 
-There are 51 tests: unit tests for the domain rules, encryption, validation and URL/image safety, plus API integration tests that run against a real PostgreSQL. The test database's schema is dropped and recreated on every run, so point `TEST_DATABASE_URL` at a dedicated database. CI also builds both Docker images and fails on high or critical vulnerable packages.
+There are 59 tests: unit tests for the domain rules, encryption, validation and URL/image safety, plus API integration tests that run against a real PostgreSQL. The test database's schema is dropped and recreated on every run, so point `TEST_DATABASE_URL` at a dedicated database. CI also builds both Docker images and fails on high or critical vulnerable packages.
 
 ## Security
 
@@ -174,11 +176,27 @@ There are 51 tests: unit tests for the domain rules, encryption, validation and 
 | `Cors__Origins__N` | Browser origins allowed to call the API |
 | `ForwardedHeaders__KnownProxies__N` | Reverse-proxy IPs to trust for client IP and scheme |
 | `Database__MigrateOnStartup` | Apply migrations automatically (default `true`) |
+| `Email__Host` / `Port` / `Security` / `Username` / `Password` / `From` / `FromName` | SMTP for notifications. Without `Email__Host`, nothing is sent |
+| `App__PublicUrl` | Public address of the web app, for links in emails |
+| `ForwardedHeaders__KnownNetworks__N` | Proxy networks to trust, in CIDR form (e.g. `172.16.0.0/12` for a proxy on the Docker host) |
+
+## Moderators
+
+Only someone with access to the server can make a moderator. The account must already be registered, and they need to sign in again afterwards to see **Moderation** in the menu:
+
+```bash
+cd ~/apps/rentalhive
+docker compose exec web dotnet RentalHive.Web.dll make-admin someone@example.se
+docker compose exec web dotnet RentalHive.Web.dll remove-admin someone@example.se
+```
+
+Moderator rights aren't granted by email setting, because email addresses aren't verified: anyone could register an address first.
 
 ## Not included yet
 
 - Online payment and deposits (for example Swish or Stripe). Renters and owners currently settle directly after confirmation.
-- Email or SMS notifications for new requests and confirmations.
+- SMS notifications. Email notifications are included.
 - In-app messaging between renter and owner.
 - BankID verification of personnummer. Format and checksum are validated, but identity is not verified.
-- Insurance, damage reports and admin moderation tools.
+- Insurance and damage reports.
+- Queued emails are kept in memory, so emails waiting to be sent when the app restarts are lost.

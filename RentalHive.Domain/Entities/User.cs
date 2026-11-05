@@ -27,6 +27,15 @@ public class User
     public int FailedLoginCount { get; set; }
     public DateTime? LockoutEndUtc { get; set; }
 
+    /// <summary>Moderators can review reports, remove listings and suspend members. Granted with the make-admin command.</summary>
+    public bool IsAdmin { get; set; }
+
+    /// <summary>Set when a moderator suspends the account: sign-in is refused and sessions end.</summary>
+    public DateTime? SuspendedAt { get; set; }
+    public string? SuspensionReason { get; set; }
+
+    public bool IsSuspended => SuspendedAt is not null;
+
     public ICollection<RentalItem> OwnedItems { get; } = new List<RentalItem>();
     public ICollection<Booking> Bookings { get; } = new List<Booking>();
 

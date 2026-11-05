@@ -37,10 +37,16 @@ public sealed class AuthController(IAccountService accounts, TokenService tokens
     public async Task<IActionResult> Login(LoginRequest request, CancellationToken ct)
     {
         var result = await accounts.LoginAsync(request, ct);
+        if (result.Outcome == LoginOutcome.Success)
+        {
+            var (token, expires) = tokens.Issue(result.User!);
+            return Ok(new TokenResponse(token, expires, UserSummaryResponse.From(result.User!)));
+        }
+
         return result.Outcome switch
         {
-            LoginOutcome.Success => Ok(new TokenResponse(tokens.Issue(result.User!).Token, tokens.Issue(result.User!).ExpiresUtc, UserSummaryResponse.From(result.User!))),
             LoginOutcome.LockedOut => Problem(statusCode: StatusCodes.Status401Unauthorized, title: "Too many failed attempts. Try again later."),
+            LoginOutcome.Suspended => Problem(statusCode: StatusCodes.Status403Forbidden, title: "This account has been suspended."),
             _ => Problem(statusCode: StatusCodes.Status401Unauthorized, title: "Invalid credentials."),
         };
     }

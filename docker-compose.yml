@@ -12,7 +12,7 @@ services:
     restart: unless-stopped
     env_file: .env
     environment:
-      ConnectionStrings__RentalHive: "Host=db;Database=${POSTGRES_DB:-rentalhive};Username=${POSTGRES_USER:-rentalhive};Password=${POSTGRES_PASSWORD}"
+      ConnectionStrings__RentalHive: "Host=db;Database=${POSTGRES_DB:-rentalhive};Username=${POSTGRES_USER:-rentalhive};Password=${POSTGRES_PASSWORD};Gss Encryption Mode=Disable"
       Database__MigrateOnStartup: "true"
     ports: ["${WEB_PORT:-8080}:8080"]
     volumes:
@@ -32,7 +32,7 @@ services:
     restart: unless-stopped
     env_file: .env
     environment:
-      ConnectionStrings__RentalHive: "Host=db;Database=${POSTGRES_DB:-rentalhive};Username=${POSTGRES_USER:-rentalhive};Password=${POSTGRES_PASSWORD}"
+      ConnectionStrings__RentalHive: "Host=db;Database=${POSTGRES_DB:-rentalhive};Username=${POSTGRES_USER:-rentalhive};Password=${POSTGRES_PASSWORD};Gss Encryption Mode=Disable"
       Database__MigrateOnStartup: "false"   # the web container applies migrations
     ports: ["${API_PORT:-8081}:8080"]
     volumes:

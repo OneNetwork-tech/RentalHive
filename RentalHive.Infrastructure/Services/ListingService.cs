@@ -109,6 +109,8 @@ public sealed class ListingService(RentalHiveDbContext db, IImageStore images, I
     public async Task SetActiveAsync(int ownerId, int id, bool active, CancellationToken ct = default)
     {
         var item = await OwnedAsync(ownerId, id, ct).ConfigureAwait(false);
+        if (active && item.RemovedAt is not null)
+            throw new DomainException("A moderator removed this listing, so it can't be reactivated.", DomainErrorKind.Forbidden);
         item.IsActive = active;
         item.UpdatedAt = clock.UtcNow;
         await db.SaveChangesAsync(ct).ConfigureAwait(false);
@@ -198,7 +200,7 @@ public sealed class ListingService(RentalHiveDbContext db, IImageStore images, I
     {
         ratings.TryGetValue(i.Id, out var r);
         var image = i.Images.OrderBy(x => x.SortOrder).ThenBy(x => x.Id).FirstOrDefault()?.FileName;
-        return new ListingSummary(i.Id, i.Category, i.Name, i.City, i.DailyRate, image, r.Count > 0 ? r.Avg : null, r.Count, ListingFactory.Subtitle(i), i.IsActive);
+        return new ListingSummary(i.Id, i.Category, i.Name, i.City, i.DailyRate, image, r.Count > 0 ? r.Avg : null, r.Count, ListingFactory.Subtitle(i), i.IsActive, i.RemovalReason);
     }
 
     private static string EscapeLike(string s) => s.Replace("\\", "\\\\", StringComparison.Ordinal)

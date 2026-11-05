@@ -8,8 +8,17 @@ namespace RentalHive.Api.Controllers;
 [ApiController]
 [Route("api/listings")]
 [Authorize]
-public sealed class ListingsController(IListingService listings, IBookingService bookings) : ControllerBase
+public sealed class ListingsController(IListingService listings, IBookingService bookings, IModerationService moderation) : ControllerBase
 {
+    /// <summary>Flag a listing for the moderators (fake, misleading, dangerous…).</summary>
+    [HttpPost("{id:int}/report")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> Report(int id, ReportListingRequest request, CancellationToken ct)
+    {
+        await moderation.ReportListingAsync(User.UserId(), id, request, ct);
+        return NoContent();
+    }
+
     [HttpGet]
     [AllowAnonymous]
     public Task<PagedResult<ListingSummary>> Search([FromQuery] ListingSearch search, CancellationToken ct) => listings.SearchAsync(search, ct);

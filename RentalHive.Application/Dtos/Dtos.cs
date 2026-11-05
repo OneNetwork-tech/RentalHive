@@ -69,7 +69,7 @@ public sealed class UpdateProfileRequest
     public string City { get; set; } = string.Empty;
 }
 
-public sealed record UserSummary(int Id, string Email, string FirstName, string LastName, string DisplayName, Guid SecurityStamp);
+public sealed record UserSummary(int Id, string Email, string FirstName, string LastName, string DisplayName, Guid SecurityStamp, bool IsAdmin = false);
 
 public sealed record ProfileDto(
     int Id, string Email, string PhoneNumber, string FirstName, string LastName, string Address, string City,
@@ -80,6 +80,9 @@ public enum LoginOutcome
     Success,
     InvalidCredentials,
     LockedOut,
+
+    /// <summary>Correct password, but a moderator has suspended the account.</summary>
+    Suspended,
 }
 
 public sealed record LoginResult(LoginOutcome Outcome, UserSummary? User, DateTime? LockedUntilUtc = null);
@@ -177,7 +180,7 @@ public sealed record PagedResult<T>(IReadOnlyList<T> Items, int Total, int Page,
 
 public sealed record ListingSummary(
     int Id, ItemCategory Category, string Name, string City, decimal DailyRate, string? ImageFileName,
-    double? AverageRating, int ReviewCount, string Subtitle, bool IsActive);
+    double? AverageRating, int ReviewCount, string Subtitle, bool IsActive, string? RemovalReason = null);
 
 public sealed record ListingDetails(
     int Id, ItemCategory Category, string Name, string Description, string City, decimal DailyRate, bool IsActive,
@@ -226,3 +229,15 @@ public sealed class ReviewRequest
     [StringLength(2000)]
     public string Comment { get; set; } = string.Empty;
 }
+
+// --- Moderation -----------------------------------------------------------------
+
+public sealed record ReportListingRequest(string Reason);
+
+public sealed record OpenReportDto(
+    int Id, int ItemId, string ItemName, bool ItemActive, int OwnerId, string OwnerName, string OwnerEmail,
+    string Reason, string ReporterName, DateTime CreatedAt, int OpenReportsForItem);
+
+public sealed record MemberDto(
+    int Id, string Name, string Email, string PhoneNumber, DateTime MemberSince, bool IsAdmin,
+    DateTime? SuspendedAt, string? SuspensionReason, int ActiveListings);

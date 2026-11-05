@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using RentalHive.Application.Contracts;
 using RentalHive.Application.Dtos;
 using RentalHive.Domain.Common;
@@ -7,8 +8,24 @@ using RentalHive.Infrastructure.Persistence;
 
 namespace RentalHive.Infrastructure.Services;
 
-public sealed class BookingService(RentalHiveDbContext db, IClock clock) : IBookingService
+public sealed partial class BookingService(RentalHiveDbContext db, IClock clock, BookingNotifier notifier, ILogger<BookingService> logger) : IBookingService
 {
+    /// <summary>The change is already saved; a notification problem must not turn it into an error.</summary>
+    private async Task NotifyAsync(Func<Task> send)
+    {
+        try
+        {
+            await send().ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            LogNotifyFailed(logger, ex);
+        }
+    }
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Could not queue a booking notification")]
+    private static partial void LogNotifyFailed(ILogger logger, Exception ex);
+
     public async Task<Quote> QuoteAsync(int itemId, DateOnly start, DateOnly end, CancellationToken ct = default)
     {
         var item = await db.RentalItems.AsNoTracking().FirstOrDefaultAsync(i => i.Id == itemId && i.IsActive, ct).ConfigureAwait(false)
@@ -30,6 +47,7 @@ public sealed class BookingService(RentalHiveDbContext db, IClock clock) : IBook
             throw new DomainException("You already have a pending request for these dates.", DomainErrorKind.Conflict);
         db.Bookings.Add(booking);
         await db.SaveChangesAsync(ct).ConfigureAwait(false);
+        await NotifyAsync(() => notifier.RequestedAsync(booking.Id, ct)).ConfigureAwait(false);
         return await LoadAsync(booking.Id, renterId, ct).ConfigureAwait(false);
     }
 
@@ -53,6 +71,8 @@ public sealed class BookingService(RentalHiveDbContext db, IClock clock) : IBook
         foreach (var o in others) o.DeclineAsUnavailable(clock.UtcNow);
         await SaveAsync(ct).ConfigureAwait(false);
         await tx.CommitAsync(ct).ConfigureAwait(false);
+        var declined = others.Select(o => o.Id).ToList();
+        await NotifyAsync(() => notifier.ConfirmedAsync(bookingId, declined, ct)).ConfigureAwait(false);
         return await LoadAsync(bookingId, userId, ct).ConfigureAwait(false);
     }
 
@@ -61,6 +81,7 @@ public sealed class BookingService(RentalHiveDbContext db, IClock clock) : IBook
         var (booking, ownerId) = await TrackedAsync(bookingId, userId, ct).ConfigureAwait(false);
         booking.Decline(userId, ownerId, clock.UtcNow);
         await SaveAsync(ct).ConfigureAwait(false);
+        await NotifyAsync(() => notifier.DeclinedAsync(bookingId, ct)).ConfigureAwait(false);
         return await LoadAsync(bookingId, userId, ct).ConfigureAwait(false);
     }
 
@@ -69,6 +90,7 @@ public sealed class BookingService(RentalHiveDbContext db, IClock clock) : IBook
         var (booking, ownerId) = await TrackedAsync(bookingId, userId, ct).ConfigureAwait(false);
         booking.Cancel(userId, ownerId, clock.Today, clock.UtcNow);
         await SaveAsync(ct).ConfigureAwait(false);
+        await NotifyAsync(() => notifier.CancelledAsync(bookingId, userId, ct)).ConfigureAwait(false);
         return await LoadAsync(bookingId, userId, ct).ConfigureAwait(false);
     }
 
@@ -77,6 +99,7 @@ public sealed class BookingService(RentalHiveDbContext db, IClock clock) : IBook
         var (booking, ownerId) = await TrackedAsync(bookingId, userId, ct).ConfigureAwait(false);
         booking.Complete(userId, ownerId, clock.Today, clock.UtcNow);
         await SaveAsync(ct).ConfigureAwait(false);
+        await NotifyAsync(() => notifier.CompletedAsync(bookingId, ct)).ConfigureAwait(false);
         return await LoadAsync(bookingId, userId, ct).ConfigureAwait(false);
     }
 

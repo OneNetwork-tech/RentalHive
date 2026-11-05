@@ -1,3 +1,4 @@
+using RentalHive.Application.Contracts;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -110,6 +111,21 @@ app.MapPost("/logout", async (HttpContext http) =>
 app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
 
 if (app.Configuration.GetValue("Database:MigrateOnStartup", true)) await app.MigrateDatabaseAsync();
+
+// Server command line (only someone with access to the server can grant moderator rights):
+//   docker compose exec web dotnet RentalHive.Web.dll make-admin someone@example.se
+//   docker compose exec web dotnet RentalHive.Web.dll remove-admin someone@example.se
+if (args is [var command, var email] && command is "make-admin" or "remove-admin")
+{
+    using var scope = app.Services.CreateScope();
+    var grant = command == "make-admin";
+    var found = await scope.ServiceProvider.GetRequiredService<IModerationService>().SetAdminAsync(email, grant);
+    Console.WriteLine(found
+        ? $"{email} is {(grant ? "now a moderator. They must sign in again to see Moderation." : "no longer a moderator.")}"
+        : $"No account with email {email}. Register it first.");
+    Environment.ExitCode = found ? 0 : 1;
+    return;
+}
 
 await app.RunAsync();
 

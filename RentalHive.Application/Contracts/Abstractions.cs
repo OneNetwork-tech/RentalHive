@@ -30,3 +30,15 @@ public interface IImageStore
 }
 
 public sealed record StoredImage(string FileName, string ContentType);
+
+/// <summary>An outgoing plain-text email.</summary>
+public sealed record EmailMessage(string To, string Subject, string Body);
+
+/// <summary>
+/// Queues email for background delivery, so a slow or unavailable mail server never
+/// delays or fails a request. Delivery problems are logged, not thrown.
+/// </summary>
+public interface IEmailSender
+{
+    void Enqueue(EmailMessage message);
+}

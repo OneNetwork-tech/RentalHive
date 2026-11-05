@@ -106,6 +106,14 @@ public class Booking
     }
 
     /// <summary>The renter can cancel before the rental starts; the owner can cancel a pending or confirmed booking before it starts.</summary>
+    /// <summary>Cancels a pending request without a party acting (the renter's account was suspended).</summary>
+    public void WithdrawBySystem(DateTime now)
+    {
+        if (Status != BookingStatus.Pending) return;
+        Status = BookingStatus.Cancelled;
+        UpdatedAt = now;
+    }
+
     public void Cancel(int actingUserId, int ownerId, DateOnly today, DateTime now)
     {
         if (actingUserId != RenterId && actingUserId != ownerId) throw new DomainException("You cannot change this booking.", DomainErrorKind.Forbidden);

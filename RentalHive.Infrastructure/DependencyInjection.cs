@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using RentalHive.Application.Contracts;
+using RentalHive.Infrastructure.Email;
 using RentalHive.Infrastructure.Persistence;
 using RentalHive.Infrastructure.Security;
 using RentalHive.Infrastructure.Services;
@@ -35,6 +36,16 @@ public static class DependencyInjection
         services.AddScoped<IAccountService, AccountService>();
         services.AddScoped<IListingService, ListingService>();
         services.AddScoped<IBookingService, BookingService>();
+        services.AddScoped<IModerationService, ModerationService>();
+
+        // Email: queued and sent in the background (logged only when Email:Host is empty).
+        services.AddOptions<EmailOptions>().Bind(config.GetSection(EmailOptions.Section));
+        services.AddOptions<AppOptions>().Bind(config.GetSection(AppOptions.Section));
+        services.AddSingleton<EmailOutbox>();
+        services.AddSingleton<BackgroundEmailSender>();
+        services.AddSingleton<IEmailSender>(sp => sp.GetRequiredService<BackgroundEmailSender>());
+        services.AddHostedService<EmailDispatcher>();
+        services.AddScoped<BookingNotifier>();
         return services;
     }
 

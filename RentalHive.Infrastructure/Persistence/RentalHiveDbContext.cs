@@ -13,6 +13,7 @@ public class RentalHiveDbContext(DbContextOptions<RentalHiveDbContext> options) 
     public DbSet<ItemImage> ItemImages => Set<ItemImage>();
     public DbSet<Booking> Bookings => Set<Booking>();
     public DbSet<Review> Reviews => Set<Review>();
+    public DbSet<ListingReport> ListingReports => Set<ListingReport>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -32,7 +33,9 @@ public class RentalHiveDbContext(DbContextOptions<RentalHiveDbContext> options) 
             e.Property(u => u.Address).HasMaxLength(200);
             e.Property(u => u.City).HasMaxLength(100);
             e.Property(u => u.PasswordHash).HasMaxLength(100);
+            e.Property(u => u.SuspensionReason).HasMaxLength(500);
             e.Ignore(u => u.DisplayName);
+            e.Ignore(u => u.IsSuspended);
         });
 
         b.Entity<RentalItem>(e =>
@@ -53,6 +56,7 @@ public class RentalHiveDbContext(DbContextOptions<RentalHiveDbContext> options) 
             e.Property(i => i.Description).HasMaxLength(4000);
             e.Property(i => i.City).HasMaxLength(100);
             e.Property(i => i.DailyRate).HasPrecision(10, 2);
+            e.Property(i => i.RemovalReason).HasMaxLength(500);
             e.HasOne(i => i.Owner).WithMany(u => u.OwnedItems).HasForeignKey(i => i.OwnerId).OnDelete(DeleteBehavior.Restrict);
             e.HasMany(i => i.Images).WithOne(img => img.RentalItem).HasForeignKey(img => img.RentalItemId).OnDelete(DeleteBehavior.Cascade);
             e.HasIndex("item_type", nameof(RentalItem.IsActive));
@@ -104,6 +108,17 @@ public class RentalHiveDbContext(DbContextOptions<RentalHiveDbContext> options) 
             e.HasOne(r => r.RentalItem).WithMany(i => i.Reviews).HasForeignKey(r => r.RentalItemId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(r => r.Author).WithMany().HasForeignKey(r => r.AuthorId).OnDelete(DeleteBehavior.Restrict);
             e.ToTable(t => t.HasCheckConstraint("ck_reviews_rating", "rating BETWEEN 1 AND 5"));
+        });
+
+        b.Entity<ListingReport>(e =>
+        {
+            e.Property(r => r.Reason).HasMaxLength(ListingReport.MaxReasonLength);
+            e.Property(r => r.Resolution).HasMaxLength(500);
+            e.HasOne(r => r.RentalItem).WithMany().HasForeignKey(r => r.RentalItemId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(r => r.Reporter).WithMany().HasForeignKey(r => r.ReporterId).OnDelete(DeleteBehavior.Restrict);
+            e.HasIndex(r => r.ResolvedAt);
+            // One open report per member and listing.
+            e.HasIndex(r => new { r.RentalItemId, r.ReporterId }).IsUnique().HasFilter("resolved_at IS NULL");
         });
     }
 }

@@ -51,6 +51,9 @@
             case LoginOutcome.LockedOut:
                 error = "Too many failed attempts. Try again in a few minutes.";
                 break;
+            case LoginOutcome.Suspended:
+                error = "This account has been suspended. Contact support if you think this is a mistake.";
+                break;
             default:
                 error = "Wrong login details.";
                 break;

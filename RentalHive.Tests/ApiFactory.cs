@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 using RentalHive.Domain.Common;
 
@@ -43,9 +44,29 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
             ["Security:BcryptWorkFactor"] = "4",
             ["Storage:ImageDirectory"] = ImageDir,
             ["RateLimits:AuthPerMinute"] = "1000",
+            ["App:PublicUrl"] = "https://rentalhive.test",
         };
         foreach (var (key, value) in settings) builder.UseSetting(key, value);
     }
+
+    /// <summary>Waits for the background sender to handle an email to <paramref name="to"/> matching <paramref name="subject"/>.</summary>
+    public async Task<RentalHive.Application.Contracts.EmailMessage> WaitForEmailAsync(string to, string subject, string? bodyContains = null)
+    {
+        var outbox = Services.GetRequiredService<RentalHive.Infrastructure.Email.EmailOutbox>();
+        for (var i = 0; i < 100; i++)
+        {
+            var hit = outbox.All.LastOrDefault(m => string.Equals(m.To, to, StringComparison.OrdinalIgnoreCase) && m.Subject.Contains(subject, StringComparison.Ordinal)
+                                                  && (bodyContains is null || m.Body.Contains(bodyContains, StringComparison.Ordinal)));
+            if (hit is not null) return hit;
+            await Task.Delay(50);
+        }
+
+        throw new Xunit.Sdk.XunitException($"No email '{subject}' to {to}. Sent: {string.Join("; ", outbox.All.Select(m => m.To + ": " + m.Subject))}");
+    }
+
+    public bool HasEmail(string to, string subject) =>
+        Services.GetRequiredService<RentalHive.Infrastructure.Email.EmailOutbox>().All
+            .Any(m => string.Equals(m.To, to, StringComparison.OrdinalIgnoreCase) && m.Subject.Contains(subject, StringComparison.Ordinal));
 
     public static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web) { Converters = { new JsonStringEnumConverter() } };
 

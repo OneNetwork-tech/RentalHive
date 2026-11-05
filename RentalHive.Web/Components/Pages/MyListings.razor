@@ -38,10 +38,23 @@
                             <td class="thumb-cell"><img src="@Ui.Image(i.ImageFileName, i.Category)" alt="" /></td>
                             <td><a href="/items/@i.Id">@i.Name</a><div class="muted small">@ListingFactory.Label(i.Category) · @i.City</div></td>
                             <td>@Ui.Sek(i.DailyRate)</td>
-                            <td><span class="badge @(i.IsActive ? "badge-green" : "badge-gray")">@(i.IsActive ? "Active" : "Inactive")</span></td>
+                            <td>
+                                @if (i.RemovalReason is not null)
+                                {
+                                    <span class="badge badge-amber">Removed by moderator</span>
+                                    <div class="muted small">@i.RemovalReason</div>
+                                }
+                                else
+                                {
+                                    <span class="badge @(i.IsActive ? "badge-green" : "badge-gray")">@(i.IsActive ? "Active" : "Inactive")</span>
+                                }
+                            </td>
                             <td class="actions">
                                 <a class="btn btn-sm" href="/my/listings/@i.Id/edit">Edit</a>
-                                <button class="btn btn-sm" disabled="@(Busy || !RendererInfo.IsInteractive)" @onclick="() => ToggleAsync(i)">@(i.IsActive ? "Deactivate" : "Activate")</button>
+                                @if (i.RemovalReason is null)
+                                {
+                                    <button class="btn btn-sm" disabled="@(Busy || !RendererInfo.IsInteractive)" @onclick="() => ToggleAsync(i)">@(i.IsActive ? "Deactivate" : "Activate")</button>
+                                }
                                 @if (confirmDelete == i.Id)
                                 {
                                     <button class="btn btn-sm btn-danger" disabled="@(Busy || !RendererInfo.IsInteractive)" @onclick="() => DeleteAsync(i)">Confirm delete</button>

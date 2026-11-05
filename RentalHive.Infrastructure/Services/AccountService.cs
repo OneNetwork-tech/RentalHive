@@ -95,6 +95,8 @@ public sealed class AccountService(
         user.FailedLoginCount = 0;
         user.LockoutEndUtc = null;
         await db.SaveChangesAsync(ct).ConfigureAwait(false);
+        // Only reveal a suspension to someone who knows the password.
+        if (user.IsSuspended) return new LoginResult(LoginOutcome.Suspended, null);
         return new LoginResult(LoginOutcome.Success, Summary(user));
     }
 
@@ -107,10 +109,12 @@ public sealed class AccountService(
             var email = id.ToLowerInvariant();
             return await db.Users.FirstOrDefaultAsync(u => u.Email == email, ct).ConfigureAwait(false);
         }
+        // Some mobile numbers (e.g. 070123-4567) are also valid personnummer, so try both.
         if (PersonalNumber.TryParse(id, clock.Today, out var pnr) && pnr is not null)
         {
             var hash = protector.Hash(pnr.Value);
-            return await db.Users.FirstOrDefaultAsync(u => u.PersonalNumberHash == hash, ct).ConfigureAwait(false);
+            var byPnr = await db.Users.FirstOrDefaultAsync(u => u.PersonalNumberHash == hash, ct).ConfigureAwait(false);
+            if (byPnr is not null) return byPnr;
         }
         if (PhoneNumber.TryNormalize(id, out var phone))
             return await db.Users.FirstOrDefaultAsync(u => u.PhoneNumber == phone, ct).ConfigureAwait(false);
@@ -159,7 +163,7 @@ public sealed class AccountService(
     }
 
     public Task<bool> IsSessionValidAsync(int userId, Guid securityStamp, CancellationToken ct = default) =>
-        db.Users.AnyAsync(u => u.Id == userId && u.SecurityStamp == securityStamp, ct);
+        db.Users.AnyAsync(u => u.Id == userId && u.SecurityStamp == securityStamp && u.SuspendedAt == null, ct);
 
     private static void ValidatePassword(string password)
     {
@@ -175,7 +179,7 @@ public sealed class AccountService(
         return e;
     }
 
-    private static UserSummary Summary(User u) => new(u.Id, u.Email, u.FirstName, u.LastName, u.DisplayName, u.SecurityStamp);
+    private static UserSummary Summary(User u) => new(u.Id, u.Email, u.FirstName, u.LastName, u.DisplayName, u.SecurityStamp, u.IsAdmin);
 
     private ProfileDto Profile(User u)
     {

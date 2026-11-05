@@ -28,6 +28,10 @@ public abstract class RentalItem
 
     public required string City { get; set; }
     public bool IsActive { get; set; } = true;
+
+    /// <summary>Set when a moderator removes the listing; the owner can't reactivate it.</summary>
+    public DateTime? RemovedAt { get; set; }
+    public string? RemovalReason { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 

@@ -4,6 +4,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using RentalHive.Domain.Common;
 using RentalHive.Domain.Entities;
 using RentalHive.Infrastructure.Persistence;
 
@@ -21,10 +22,33 @@ public class AuthApiTests(ApiFactory api)
         foreach (var id in new[] { u.Email.ToUpperInvariant(), shortPnr, u.PersonalNumber.Replace("-", "", StringComparison.Ordinal), u.Phone })
         {
             var res = await anon.PostAsJsonAsync("/api/auth/login", new { loginIdentifier = id, password = "a-long-password" });
-            Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+            Assert.True(res.StatusCode == HttpStatusCode.OK, $"Login with '{id}' failed: {(int)res.StatusCode} {await res.Content.ReadAsStringAsync()}");
         }
         var bad = await anon.PostAsJsonAsync("/api/auth/login", new { loginIdentifier = u.Email, password = "wrong-password" });
         Assert.Equal(HttpStatusCode.Unauthorized, bad.StatusCode);
+    }
+
+    [Fact]
+    public async Task Login_with_a_phone_number_that_is_also_a_valid_personnummer()
+    {
+        // 0701234567-style numbers can pass the personnummer date and checksum rules.
+        string phone;
+        do
+        {
+            phone = ApiFactory.NewPhone();
+        }
+        while (!PersonalNumber.TryParse(phone, DateOnly.FromDateTime(DateTime.UtcNow), out _));
+
+        var anon = api.CreateClient();
+        var email = $"ambiguous-{Guid.NewGuid():N}@example.se";
+        var reg = await anon.PostAsJsonAsync("/api/auth/register", new
+        {
+            personalNumber = ApiFactory.NewPersonalNumber(), firstName = "Amb", lastName = "Iguous", email, phoneNumber = phone, city = "Luleå",
+            password = "a-long-password",
+        });
+        Assert.Equal(HttpStatusCode.Created, reg.StatusCode);
+        var login = await anon.PostAsJsonAsync("/api/auth/login", new { loginIdentifier = phone, password = "a-long-password" });
+        Assert.Equal(HttpStatusCode.OK, login.StatusCode);
     }
 
     [Fact]

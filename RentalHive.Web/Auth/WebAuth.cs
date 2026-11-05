@@ -13,13 +13,21 @@ public static class WebClaims
 {
     public const string SecurityStamp = "rh:stamp";
 
-    public static ClaimsPrincipal Principal(UserSummary user) => new(new ClaimsIdentity(
-    [
-        new Claim(ClaimTypes.NameIdentifier, user.Id.ToString(CultureInfo.InvariantCulture)),
-        new Claim(ClaimTypes.Name, user.DisplayName),
-        new Claim(ClaimTypes.Email, user.Email),
-        new Claim(SecurityStamp, user.SecurityStamp.ToString()),
-    ], CookieAuthenticationDefaults.AuthenticationScheme));
+    public const string AdminRole = "Admin";
+
+    public static ClaimsPrincipal Principal(UserSummary user)
+    {
+        List<Claim> claims =
+        [
+            new(ClaimTypes.NameIdentifier, user.Id.ToString(CultureInfo.InvariantCulture)),
+            new(ClaimTypes.Name, user.DisplayName),
+            new(ClaimTypes.Email, user.Email),
+            new(SecurityStamp, user.SecurityStamp.ToString()),
+        ];
+        // Granting or revoking admin rotates the security stamp, so a stale role can't outlive its session.
+        if (user.IsAdmin) claims.Add(new Claim(ClaimTypes.Role, AdminRole));
+        return new ClaimsPrincipal(new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme));
+    }
 
     public static int? UserId(this ClaimsPrincipal principal) =>
         int.TryParse(principal.FindFirstValue(ClaimTypes.NameIdentifier), CultureInfo.InvariantCulture, out var id) ? id : null;
