@@ -26,6 +26,9 @@ public sealed class EmailOptions
     public string? Password { get; set; }
     public string From { get; set; } = "no-reply@localhost";
     public string FromName { get; set; } = "RentalHive";
+
+    /// <summary>When SMTP is not configured, print whole emails to the log. For testing only; always on in Development.</summary>
+    public bool LogBodies { get; set; }
 }
 
 /// <summary>The last messages handled, for development and tests.</summary>
@@ -98,7 +101,7 @@ public sealed partial class EmailDispatcher(BackgroundEmailSender queue, EmailOu
         if (string.IsNullOrWhiteSpace(o.Host))
         {
             // Bodies can contain contact details; print them only in Development.
-            if (env.IsDevelopment()) LogDevEmail(logger, message.To, message.Subject, message.Body);
+            if (env.IsDevelopment() || o.LogBodies) LogDevEmail(logger, message.To, message.Subject, message.Body);
             return;
         }
 
