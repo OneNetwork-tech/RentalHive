@@ -371,3 +371,4 @@ data/
 
 # Server secrets for deploy/
 deploy/.env
+deploy/backups/
